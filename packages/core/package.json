@@ -2,6 +2,7 @@
   "name": "@lollipopkit/liquid-glass",
   "version": "0.1.0",
   "description": "Core liquid glass algorithms, shared filter params, and framework-agnostic types.",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -30,7 +31,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "publishConfig": {
     "access": "public"

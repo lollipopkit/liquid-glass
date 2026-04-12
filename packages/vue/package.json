@@ -2,6 +2,7 @@
   "name": "@lollipopkit/liquid-glass-vue",
   "version": "0.1.0",
   "description": "Vue liquid glass components for Vite projects.",
+  "license": "MIT",
   "type": "module",
   "sideEffects": [
     "**/*.css"
@@ -34,7 +35,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "publishConfig": {
     "access": "public"
