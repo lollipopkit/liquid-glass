@@ -1,0 +1,42 @@
+{
+  "name": "@lollipopkit/liquid-glass",
+  "version": "0.1.0",
+  "description": "Core liquid glass algorithms, shared filter params, and framework-agnostic types.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lollipopkit/liquid-glass.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/lollipopkit/liquid-glass#readme",
+  "bugs": {
+    "url": "https://github.com/lollipopkit/liquid-glass/issues"
+  },
+  "keywords": [
+    "liquid-glass",
+    "glassmorphism",
+    "svg-filter",
+    "canvas",
+    "visual-effects"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "types": [
+      "node"
+    ],
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lollipopkit/liquid-glass": [
+        "./packages/core/src/index.ts"
+      ],
+      "@lollipopkit/liquid-glass/*": [
+        "./packages/core/src/*"
+      ],
+      "@lollipopkit/liquid-glass-vite": [
+        "./packages/vite/src/index.ts"
+      ],
+      "@lollipopkit/liquid-glass-react": [
+        "./packages/react/src/index.ts"
+      ],
+      "@lollipopkit/liquid-glass-vue": [
+        "./packages/vue/src/index.ts"
+      ],
+      "@lollipopkit/liquid-glass-svelte": [
+        "./packages/svelte/src/index.ts"
+      ]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "changelog": false,
+  "commit": false,
+  "fixed": [],
+  "linked": [
+    [
+      "@lollipopkit/liquid-glass",
+      "@lollipopkit/liquid-glass-vite",
+      "@lollipopkit/liquid-glass-react",
+      "@lollipopkit/liquid-glass-vue",
+      "@lollipopkit/liquid-glass-svelte"
+    ]
+  ],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

@@ -1,53 +1,33 @@
 {
-  "name": "@lollipopkit/liquid-glass",
-  "version": "0.1.0",
+  "name": "liquid-glass-workspace",
+  "private": true,
   "type": "module",
-  "sideEffects": [
-    "**/*.css"
-  ],
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./components": {
-      "types": "./dist/components.d.ts",
-      "default": "./dist/components.js"
-    },
-    "./vite": {
-      "types": "./dist/vite.d.ts",
-      "default": "./dist/vite.js"
-    },
-    "./styles.css": "./dist/styles.css"
-  },
-  "files": [
-    "dist"
+  "workspaces": [
+    "packages/*"
   ],
   "scripts": {
-    "dev": "vite --configLoader runner --config ../../apps/liquid-glass-demo/vite.config.ts",
-    "build": "vite build && tsc -p tsconfig.build.json",
-    "preview": "vite preview --configLoader runner --config ../../apps/liquid-glass-demo/vite.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
-  },
-  "peerDependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
-  },
-  "dependencies": {
-    "motion": "^12.23.12",
-    "react-icons": "^5.5.0",
-    "tailwind-merge": "^2.6.0"
+    "build": "node ./scripts/run-workspaces.mjs build",
+    "changeset": "changeset",
+    "typecheck": "node ./scripts/run-workspaces.mjs typecheck",
+    "version-packages": "changeset version",
+    "release": "npm run build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.7",
+    "@jridgewell/trace-mapping": "^0.3.25",
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
     "@tailwindcss/vite": "^4.1.7",
     "@types/node": "^24.5.2",
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "svelte": "^5.34.9",
+    "svelte-check": "^4.1.7",
     "tailwindcss": "^4.1.7",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vue": "^3.5.13"
   }
 }

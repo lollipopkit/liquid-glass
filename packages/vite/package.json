@@ -1,0 +1,48 @@
+{
+  "name": "@lollipopkit/liquid-glass-vite",
+  "version": "0.1.0",
+  "description": "Vite plugin and virtual modules for generating liquid glass filter assets.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lollipopkit/liquid-glass.git",
+    "directory": "packages/vite"
+  },
+  "homepage": "https://github.com/lollipopkit/liquid-glass#readme",
+  "bugs": {
+    "url": "https://github.com/lollipopkit/liquid-glass/issues"
+  },
+  "keywords": [
+    "liquid-glass",
+    "vite-plugin",
+    "svg-filter",
+    "virtual-module",
+    "visual-effects"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json && node ../../scripts/copy-file.mjs src/virtualModules.d.ts dist/virtualModules.d.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lollipopkit/liquid-glass": "0.1.0"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "@lollipopkit/liquid-glass-react",
+  "version": "0.1.0",
+  "description": "React liquid glass components for Vite projects.",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lollipopkit/liquid-glass.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/lollipopkit/liquid-glass#readme",
+  "bugs": {
+    "url": "https://github.com/lollipopkit/liquid-glass/issues"
+  },
+  "keywords": [
+    "liquid-glass",
+    "react",
+    "components",
+    "svg-filter",
+    "visual-effects"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lollipopkit/liquid-glass": "0.1.0",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "@lollipopkit/liquid-glass-vite": "0.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

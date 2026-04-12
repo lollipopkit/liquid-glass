@@ -1,218 +1,79 @@
-English | [简体中文](./README.zh-CN.md)
+[简体中文](./README.zh-CN.md)
 
 # liquid-glass
 
 Reference: [kube blog article](https://kube.io/blog/liquid-glass-css-svg)
 
-A toolkit for generating and applying liquid glass / refraction effects. It includes three parts:
+Monorepo for `liquid glass / refraction` effects across React, Vue, and Svelte.
 
-- Low-level displacement map and specular map generation utilities
-- A Vite plugin based on `virtual:` modules
-- A set of ready-to-use React components
+## Packages
 
-## Installation
+- `@lollipopkit/liquid-glass`
+  Core algorithms, shared types, surface presets
+- `@lollipopkit/liquid-glass-vite`
+  Vite plugin and resource-oriented `virtual:` modules
+- `@lollipopkit/liquid-glass-react`
+  React components
+- `@lollipopkit/liquid-glass-vue`
+  Vue components
+- `@lollipopkit/liquid-glass-svelte`
+  Svelte components
 
-```bash
-npm i @lollipopkit/liquid-glass
-# Or with Bun
-bun add @lollipopkit/liquid-glass
-```
-
-Peer dependencies:
-
-- `react@^19.1.0`
-- `react-dom@^19.1.0`
-
-`@lollipopkit/liquid-glass/components` imports the bundled styles automatically. `@lollipopkit/liquid-glass/styles.css` is still available as an optional explicit style entry.
-
-## Development Preview
-
-This repo already includes a demo app wired to the package source. You can start it directly from the current package directory:
+## Workspace Commands
 
 ```bash
-npm run dev
-bun run dev
+npm install
+npm run typecheck
+npm run build
 ```
-
-This uses the Vite config from `../../apps/liquid-glass-demo` and aliases directly to `packages/liquid-glass/src`, so changes to components, styles, or virtual modules are reflected immediately in the demo. The script uses `--configLoader runner`, which allows starting from the package directory without depending on a local `node_modules` folder inside the demo app.
-
-If you want to preview the built demo output:
 
 ```bash
-npm run preview
-bun run preview
+bun install
+bun run typecheck
+bun run build
 ```
 
-## Exports
+## Vite Requirement
 
-```ts
-import {
-  CONCAVE,
-  CONVEX,
-  CONVEX_CIRCLE,
-  LIP,
-  calculateDisplacementMap,
-  calculateDisplacementMap2,
-  calculateMagnifyingDisplacementMap,
-  calculateRefractionSpecular,
-  surfacePresets,
-} from "@lollipopkit/liquid-glass";
-
-import { liquidGlassPlugin } from "@lollipopkit/liquid-glass/vite";
-
-import {
-  LiquidMagnifyingGlass,
-  LiquidParallaxHero,
-  LiquidSearchbox,
-  LiquidSlider,
-  LiquidSwitch,
-} from "@lollipopkit/liquid-glass/components";
-```
-
-## Vite Plugin
-
-Register the plugin in `vite.config.ts`:
+The UI packages currently require Vite. Register the plugin from `@lollipopkit/liquid-glass-vite` in the consumer app before using any React/Vue/Svelte component package.
 
 ```ts
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { liquidGlassPlugin } from "@lollipopkit/liquid-glass/vite";
+import { liquidGlassPlugin } from "@lollipopkit/liquid-glass-vite";
 
 export default defineConfig({
-  plugins: [react(), liquidGlassPlugin()],
+  plugins: [liquidGlassPlugin()],
 });
 ```
 
-The plugin provides three types of virtual modules:
+## Virtual Modules
 
-- `virtual:refractionDisplacementMap?...`
-- `virtual:refractionSpecularMap?...`
-- `virtual:refractionFilter?...`
+The Vite package exposes resource modules instead of framework-specific filter components:
 
-Supported query parameters:
+- `virtual:liquidGlassDisplacementMap?...`
+- `virtual:liquidGlassSpecularMap?...`
+- `virtual:liquidGlassMagnifyingMap?...`
+- `virtual:liquidGlassFilterAssets?...`
 
-- `width`
-- `height`
-- `radius`
-- `bezelWidth`
-- `glassThickness`
-- `refractiveIndex`
-- `specularSaturation`
-- `blur`
-- `magnify`
-- `bezelType`: `convex_circle` | `convex_squircle` | `concave` | `lip`
-
-### `virtual:refractionFilter`
-
-The most common usage is generating a reusable `Filter` component directly:
-
-```tsx
-import { Filter } from "virtual:refractionFilter?width=240&height=72&radius=36&bezelWidth=20&glassThickness=90&refractiveIndex=1.45&bezelType=convex_squircle";
-
-export function GlassCard() {
-  return (
-    <div className="relative">
-      <Filter
-        id="glass-card-filter"
-        blur={0.5}
-        scaleRatio={1}
-        specularOpacity={0.25}
-        specularSaturation={6}
-      />
-
-      <div
-        style={{
-          width: 240,
-          height: 72,
-          borderRadius: 36,
-          backdropFilter: "url(#glass-card-filter)",
-          background: "rgba(255,255,255,0.12)",
-        }}
-      />
-    </div>
-  );
-}
-```
-
-`Filter` props:
-
-- `id: string`
-- `withSvgWrapper?: boolean`
-- `blur?: number | MotionValue<number>`
-- `scaleRatio?: number | MotionValue<number>`
-- `specularOpacity?: number | MotionValue<number>`
-- `specularSaturation?: number | MotionValue<number>`
-- `magnifyingScale?: number | MotionValue<number>`
-- `width?: number`
-- `height?: number`
-
-### `virtual:refractionDisplacementMap`
+`virtual:liquidGlassFilterAssets` returns:
 
 ```ts
-import displacement from "virtual:refractionDisplacementMap?width=150&height=150&radius=75&bezelWidth=40&glassThickness=120&refractiveIndex=1.5";
-
-console.log(displacement.url);
-console.log(displacement.maxDisplacement);
+type LiquidGlassFilterAssets = {
+  displacementUrl: string;
+  specularUrl: string;
+  magnifyingUrl?: string;
+  width: number;
+  height: number;
+  maxDisplacement: number;
+  magnify: boolean;
+  params: LiquidGlassFilterParams;
+};
 ```
 
-### `virtual:refractionSpecularMap`
+All framework packages export:
 
-```ts
-import specularUrl from "virtual:refractionSpecularMap?width=150&height=150&radius=75&bezelWidth=40";
-```
-
-## Algorithm API
-
-If you only want the low-level generation logic, you can call the utilities directly:
-
-```ts
-import {
-  CONVEX,
-  calculateDisplacementMap,
-  calculateDisplacementMap2,
-  calculateRefractionSpecular,
-} from "@lollipopkit/liquid-glass";
-
-const precomputed = calculateDisplacementMap(120, 40, CONVEX.fn, 1.5);
-
-const imageData = calculateDisplacementMap2(
-  150,
-  150,
-  150,
-  150,
-  75,
-  40,
-  100,
-  precomputed,
-  2
-);
-
-const specular = calculateRefractionSpecular(150, 150, 75, 40, undefined, 2);
-```
-
-Built-in surface presets:
-
-- `CONVEX_CIRCLE`
-- `CONVEX`
-- `CONCAVE`
-- `LIP`
-- `surfacePresets`
-
-## Components
-
-`@lollipopkit/liquid-glass/components` exports a set of React components that can be used directly:
-
-- `LiquidMagnifyingGlass`
-- `LiquidParallaxHero`
 - `LiquidSearchbox`
 - `LiquidSlider`
 - `LiquidSwitch`
-
-These components are intended to be embedded directly in product UI. The `components` entry already pulls in the bundled styles.
-
-## Use Cases
-
-- Glassmorphism search boxes, switches, sliders, and player UI
-- Refraction or magnifying-glass effects over images or backgrounds
-- Pre-generating displacement/specular assets at build time
-- Driving filter parameters with animation systems through `MotionValue`
+- `LiquidMagnifyingGlass`
+- `LiquidParallaxHero`
