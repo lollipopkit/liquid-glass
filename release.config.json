@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "tagPrefix": "v",
+  "npmTag": "latest",
+  "access": "public",
+  "packages": [
+    "packages/core",
+    "packages/vite",
+    "packages/react",
+    "packages/vue",
+    "packages/svelte"
+  ]
+}

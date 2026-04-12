@@ -9,9 +9,11 @@
   "scripts": {
     "build": "node ./scripts/run-workspaces.mjs build",
     "changeset": "changeset",
+    "publish-packages": "node ./scripts/publish-packages.mjs publish",
+    "release": "node ./scripts/publish-packages.mjs release",
+    "sync-versions": "node ./scripts/publish-packages.mjs sync",
     "typecheck": "node ./scripts/run-workspaces.mjs typecheck",
-    "version-packages": "changeset version",
-    "release": "npm run build && changeset publish"
+    "version-packages": "changeset version"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
