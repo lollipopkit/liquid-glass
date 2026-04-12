@@ -14,7 +14,6 @@ import {
   clamp,
   cn,
   mix,
-  toCssSize,
   useAnimatedNumber,
   useElementSize,
   useFilterId,
@@ -274,16 +273,7 @@ export const LiquidMagnifyingGlass = defineComponent({
                 lensRef.value?.setPointerCapture?.(event.pointerId);
                 activeAmount.setTarget(1);
               },
-            },
-            [
-              h("div", {
-                class:
-                  "pointer-events-none absolute inset-[6px] rounded-[inherit] border border-white/22",
-                style: {
-                  borderRadius: toCssSize(props.lensHeight / 2 - 6, "9999px"),
-                },
-              }),
-            ]
+            }
           ),
         ]
       );

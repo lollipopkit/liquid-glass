@@ -223,10 +223,5 @@
       startDragLoop();
       dispatch("dragstart", { x: livePosition.x, y: livePosition.y });
     }}
-  >
-    <div
-      class="pointer-events-none absolute inset-[6px] rounded-[inherit] border border-white/22"
-      style={`border-radius:${Math.max(0, lensHeight / 2 - 6)}px`}
-    ></div>
-  </div>
+  ></div>
 </div>

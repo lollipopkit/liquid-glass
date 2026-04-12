@@ -6,7 +6,6 @@ import {
   clamp,
   cn,
   mix,
-  toCssSize,
   useAnimatedNumber,
   useElementSize,
   useFilterId,
@@ -227,10 +226,6 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
           activeAmount.setTarget(1);
         }}
       >
-        <div
-          className="pointer-events-none absolute inset-[6px] rounded-[inherit] border border-white/22"
-          style={{ borderRadius: toCssSize(lensHeight / 2 - 6, "9999px") }}
-        />
       </div>
     </div>
   );
