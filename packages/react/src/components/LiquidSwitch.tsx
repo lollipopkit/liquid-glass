@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import switchAssets from "virtual:liquidGlassFilterAssets?width=58&height=58&radius=29&bezelWidth=16&glassThickness=58&refractiveIndex=1.5&bezelType=lip";
+import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&radius=46&bezelWidth=19&glassThickness=47&refractiveIndex=1.5&bezelType=lip";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -20,10 +20,17 @@ export type LiquidSwitchProps = Omit<
   className?: string;
 };
 
-const THUMB_SIZE = 58;
-const TRACK_WIDTH = 92;
-const TRACK_HEIGHT = 40;
-const TRACK_PADDING = (THUMB_SIZE - TRACK_HEIGHT) / 2;
+const THUMB_WIDTH = 146;
+const THUMB_HEIGHT = 92;
+const THUMB_RADIUS = THUMB_HEIGHT / 2;
+const TRACK_WIDTH = 160;
+const TRACK_HEIGHT = 67;
+const REST_SCALE = 0.65;
+const ACTIVE_SCALE = 0.9;
+const THUMB_REST_OFFSET = ((1 - REST_SCALE) * THUMB_WIDTH) / 2;
+const TRACK_PADDING = (THUMB_HEIGHT - TRACK_HEIGHT) / 2;
+const TRAVEL =
+  TRACK_WIDTH - TRACK_HEIGHT - (THUMB_WIDTH - THUMB_HEIGHT) * REST_SCALE;
 
 export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
   className,
@@ -35,14 +42,13 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
   ...inputProps
 }) => {
   const filterId = useFilterId("liquid-switch");
-  const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [checked, setChecked] = useControllableValue(
     controlledChecked,
     defaultChecked,
     onCheckedChange
   );
-  const active = !disabled && (pressed || focused);
+  const active = !disabled && pressed;
   const activeAmount = useAnimatedNumber(0, {
     stiffness: 0.18,
     damping: 0.76,
@@ -75,20 +81,26 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
     };
   }, [pressed]);
 
-  const trackBackground = `rgba(${mix(148, 56, checkedAmount.value)},${mix(148, 189, checkedAmount.value)},${mix(159, 248, checkedAmount.value)},${mix(0.34, 0.48, checkedAmount.value)})`;
-  const thumbLeft = (TRACK_WIDTH - THUMB_SIZE) * checkedAmount.value;
-  const blur = mix(0.18, 0.08, activeAmount.value);
-  const scaleRatio = mix(0.62, 0.94, activeAmount.value);
-  const specularOpacity = mix(0.5, 0.6, activeAmount.value);
-  const specularSaturation = mix(6, 8, activeAmount.value);
-  const thumbScale = disabled ? 0.76 : mix(0.8, 0.94, activeAmount.value);
-  const thumbBackground = `rgba(255,255,255,${mix(0.18, 0.3, checkedAmount.value)})`;
-  const thumbShadow = `0 ${mix(8, 14, activeAmount.value)}px ${mix(22, 28, activeAmount.value)}px rgba(15,23,42,${mix(0.14, 0.18, activeAmount.value)})`;
+  const trackBackground = `rgba(${mix(148, 59, checkedAmount.value)},${mix(148, 191, checkedAmount.value)},${mix(159, 78, checkedAmount.value)},${mix(0.47, 0.93, checkedAmount.value)})`;
+  const blur = 0.2;
+  const scaleRatio = 0.4 + 0.5 * activeAmount.value;
+  const specularOpacity = 0.5;
+  const specularSaturation = 6;
+  const thumbScale = disabled ? REST_SCALE : mix(REST_SCALE, ACTIVE_SCALE, activeAmount.value);
+  const thumbLeft =
+    -THUMB_REST_OFFSET +
+    (TRACK_HEIGHT - THUMB_HEIGHT * REST_SCALE) / 2 +
+    TRAVEL * checkedAmount.value;
+  const thumbBackground = `rgba(255,255,255,${mix(1, 0.1, activeAmount.value)})`;
+  const thumbShadow =
+    activeAmount.value > 0.5
+      ? "0 4px 22px rgba(0,0,0,0.1), inset 2px 7px 24px rgba(0,0,0,0.09), inset -2px -7px 24px rgba(255,255,255,0.09)"
+      : "0 4px 22px rgba(0,0,0,0.1)";
 
   return (
     <label
       className={cn(
-        "relative inline-flex h-[58px] w-[110px] shrink-0 select-none",
+        "relative inline-flex h-[92px] w-[160px] shrink-0 select-none touch-none",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
         className
       )}
@@ -110,11 +122,9 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
           inputProps.onPointerDown?.(event);
         }}
         onFocus={(event) => {
-          setFocused(true);
           inputProps.onFocus?.(event);
         }}
         onBlur={(event) => {
-          setFocused(false);
           setPressed(false);
           inputProps.onBlur?.(event);
         }}
@@ -122,18 +132,17 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
 
       <div
         className="absolute inset-y-0"
-        style={{ left: TRACK_PADDING, right: TRACK_PADDING }}
+        style={{ left: 0, right: 0 }}
       >
         <div
-          className="absolute inset-x-0 border border-black/8 dark:border-white/8"
+          className="absolute"
           style={{
             top: TRACK_PADDING,
+            width: TRACK_WIDTH,
             height: TRACK_HEIGHT,
             borderRadius: TRACK_HEIGHT / 2,
             backgroundColor: trackBackground,
-            boxShadow: focused
-              ? "0 0 0 1px rgba(56,189,248,0.22)"
-              : "0 10px 24px rgba(15,23,42,0.08)",
+            boxShadow: "none",
             willChange: "background-color",
           }}
         />
@@ -141,8 +150,8 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
         <LiquidGlassFilter
           id={filterId}
           assets={switchAssets}
-          width={THUMB_SIZE}
-          height={THUMB_SIZE}
+          width={THUMB_WIDTH}
+          height={THUMB_HEIGHT}
           blur={blur}
           scaleRatio={scaleRatio}
           specularOpacity={specularOpacity}
@@ -150,13 +159,13 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
         />
 
         <div
-          className="pointer-events-none absolute border border-white/35 bg-white/16"
+          className="pointer-events-none absolute"
           style={{
             top: 0,
-            width: THUMB_SIZE,
-            height: THUMB_SIZE,
+            width: THUMB_WIDTH,
+            height: THUMB_HEIGHT,
             left: thumbLeft,
-            borderRadius: THUMB_SIZE / 2,
+            borderRadius: THUMB_RADIUS,
             backdropFilter: `url(#${filterId})`,
             transform: `scale(${thumbScale})`,
             backgroundColor: thumbBackground,

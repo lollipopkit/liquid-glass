@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import sliderAssets from "virtual:liquidGlassFilterAssets?width=84&height=56&radius=28&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
+import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -24,8 +24,12 @@ export type LiquidSliderProps = Omit<
   className?: string;
 };
 
-const THUMB_WIDTH = 84;
-const THUMB_HEIGHT = 56;
+const THUMB_WIDTH = 90;
+const THUMB_HEIGHT = 60;
+const TRACK_HEIGHT = 14;
+const REST_SCALE = 0.6;
+const ACTIVE_SCALE = 1;
+const REST_WIDTH = THUMB_WIDTH * REST_SCALE;
 
 export const LiquidSlider: React.FC<LiquidSliderProps> = ({
   className,
@@ -40,7 +44,6 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
   ...inputProps
 }) => {
   const filterId = useFilterId("liquid-slider");
-  const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
   const safeMax = max > min ? max : min + 1;
   const [value, setValue] = useControllableValue(
@@ -50,7 +53,7 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
   );
   const normalizedValue = clamp(value, min, safeMax);
   const progress = ((normalizedValue - min) / (safeMax - min)) * 100;
-  const active = !disabled && (focused || pressed);
+  const active = !disabled && pressed;
   const activeAmount = useAnimatedNumber(0, {
     stiffness: 0.18,
     damping: 0.76,
@@ -93,25 +96,25 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
   }, [pressed]);
 
   const animatedProgress = progressAmount.value;
-  const blur = mix(0.3, 0.05, activeAmount.value);
-  const scaleRatio = mix(0.56, 0.92, activeAmount.value);
-  const specularOpacity = mix(0.4, 0.52, activeAmount.value);
-  const specularSaturation = mix(7, 9, activeAmount.value);
-  const thumbScale = disabled ? 0.72 : mix(0.68, 1, activeAmount.value);
+  const blur = 0;
+  const scaleRatio = mix(0.4, 0.9, activeAmount.value);
+  const specularOpacity = 0.4;
+  const specularSaturation = 7;
+  const thumbScale = disabled ? REST_SCALE : mix(REST_SCALE, ACTIVE_SCALE, activeAmount.value);
   const thumbBackground = disabled
-    ? "rgba(255,255,255,0.14)"
-    : `rgba(255,255,255,${mix(0.16, 0.28, activeAmount.value)})`;
-  const thumbShadow = `0 ${mix(8, 14, activeAmount.value)}px ${mix(20, 28, activeAmount.value)}px rgba(15,23,42,${mix(0.14, 0.18, activeAmount.value)})`;
+    ? "rgba(255,255,255,0.2)"
+    : `rgba(255,255,255,${mix(1, 0.1, activeAmount.value)})`;
+  const thumbShadow = "0 3px 14px rgba(0,0,0,0.1)";
 
   return (
     <div
       className={cn(
-        "relative w-full min-w-[220px] select-none",
+        "relative w-full max-w-[330px] min-w-[220px] select-none",
         disabled ? "opacity-60" : undefined,
         className
       )}
     >
-      <div className="relative h-16">
+      <div className="relative h-[60px]">
         <input
           {...inputProps}
           className={cn(
@@ -138,11 +141,9 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
             inputProps.onPointerDown?.(event);
           }}
           onFocus={(event) => {
-            setFocused(true);
             inputProps.onFocus?.(event);
           }}
           onBlur={(event) => {
-            setFocused(false);
             setPressed(false);
             inputProps.onBlur?.(event);
           }}
@@ -150,13 +151,21 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
 
         <div
           className="absolute inset-y-0"
-          style={{ left: THUMB_WIDTH / 2, right: THUMB_WIDTH / 2 }}
+          style={{ left: REST_WIDTH / 2, right: REST_WIDTH / 2 }}
         >
-          <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+          <div
+            className="absolute inset-x-0 overflow-hidden rounded-full"
+            style={{
+              top: (THUMB_HEIGHT - TRACK_HEIGHT) / 2,
+              height: TRACK_HEIGHT,
+              backgroundColor: "#89898F66",
+            }}
+          >
             <div
-              className="h-full rounded-full bg-sky-500/85"
+              className="h-full rounded-full"
               style={{
                 width: `${animatedProgress}%`,
+                backgroundColor: "#0377F7",
               }}
             />
           </div>
@@ -173,9 +182,9 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
           />
 
           <div
-            className="pointer-events-none absolute border border-white/35 bg-white/16"
+            className="pointer-events-none absolute"
             style={{
-              top: (64 - THUMB_HEIGHT) / 2,
+              top: 0,
               width: THUMB_WIDTH,
               height: THUMB_HEIGHT,
               left: `calc(${animatedProgress}% - ${THUMB_WIDTH / 2}px)`,

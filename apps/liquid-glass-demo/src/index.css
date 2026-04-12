@@ -4,15 +4,7 @@
 
 :root {
   color-scheme: light;
-  --demo-ink: #122033;
-  --demo-muted: rgba(18, 32, 51, 0.68);
-  --demo-line: rgba(255, 255, 255, 0.52);
-  --demo-panel: rgba(255, 255, 255, 0.5);
-  --demo-panel-strong: rgba(255, 255, 255, 0.72);
-  --demo-shadow: 0 30px 90px rgba(17, 24, 39, 0.14);
-  --demo-sky: #f3f7fb;
-  --demo-sand: #efe3d2;
-  --demo-haze: #ddeaf3;
+  --demo-ink: #0f172a;
 }
 
 * {
@@ -26,26 +18,9 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), transparent 26%),
-    radial-gradient(circle at 82% 18%, rgba(121, 198, 255, 0.25), transparent 22%),
-    radial-gradient(circle at 20% 100%, rgba(255, 210, 150, 0.26), transparent 28%),
-    linear-gradient(135deg, var(--demo-sky) 0%, var(--demo-haze) 44%, var(--demo-sand) 100%);
+  background: #ffffff;
   color: var(--demo-ink);
-  font-family: "Avenir Next", "Segoe UI", sans-serif;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
-  background-size: 36px 36px;
-  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-  opacity: 0.45;
+  font-family: "Inter", "SF Pro Display", "Segoe UI", sans-serif;
 }
 
 #root {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import heroAssets from "virtual:liquidGlassFilterAssets?width=180&height=180&radius=90&bezelWidth=34&glassThickness=120&refractiveIndex=1.5&bezelType=convex_squircle";
+import heroAssets from "virtual:liquidGlassFilterAssets?width=150&height=150&radius=75&bezelWidth=40&glassThickness=120&refractiveIndex=1.5";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import { cn, toCssSize, useAnimatedNumber, useFilterId } from "./shared";
@@ -16,40 +16,29 @@ export type LiquidParallaxHeroProps = {
 };
 
 export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
-  alt,
   children,
   className,
   focalImageSrc,
   height,
   imageSrc,
-  lensSize = 180,
+  lensSize = 200,
   parallaxSpeed = -0.25,
 }) => {
   const filterId = useFilterId("liquid-parallax-hero");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef(0);
-  const progress = useAnimatedNumber(0.5, {
+  const progress = useAnimatedNumber(0, {
     stiffness: 0.12,
     damping: 0.82,
   });
   const sourceForLens = focalImageSrc ?? imageSrc;
-  const backgroundTravel = 180 * parallaxSpeed;
-  const backgroundY = (progress.value - 0.5) * 2 * backgroundTravel;
-  const focalY = (progress.value - 0.5) * 2 * backgroundTravel * 0.72;
-  const lensImageSize = lensSize * 1.34;
+  const backgroundOffset = Math.min(800, progress.value) * parallaxSpeed;
+  const backgroundY = -60 + backgroundOffset;
+  const focalY = 13 + backgroundOffset * 0.75;
 
   useEffect(() => {
     const update = () => {
-      const node = containerRef.current;
-
-      if (!node) {
-        return;
-      }
-
-      const rect = node.getBoundingClientRect();
-      const viewportHeight = window.innerHeight || 1;
-      const value = (viewportHeight - rect.top) / (viewportHeight + rect.height);
-      progress.setTarget(Math.max(0, Math.min(1, value)));
+      progress.setTarget(window.scrollY || 0);
     };
 
     const scheduleUpdate = () => {
@@ -77,61 +66,48 @@ export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "relative isolate overflow-hidden rounded-[32px] border border-black/10 bg-slate-900 text-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]",
-        "dark:border-white/10",
-        className
-      )}
-      style={{ height: toCssSize(height, "min(70vh, 560px)") }}
-    >
-      <img
-        src={imageSrc}
-        alt={alt}
-        className="absolute inset-0 h-[118%] w-full object-cover"
-        style={{ transform: `translateY(${backgroundY}px)`, willChange: "transform" }}
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(120%_100%_at_50%_0%,rgba(255,255,255,0.15),transparent_48%),linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.4))]" />
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/10 to-transparent" />
-
-      <div className="relative z-10 flex h-full items-end p-6 sm:p-8 lg:p-10">
-        {children ? (
-          <div className="max-w-2xl text-white drop-shadow-[0_10px_30px_rgba(15,23,42,0.22)]">
-            {children}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+    <div>
+      <div
+        ref={containerRef}
+        className={cn(
+          "relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-slate-600/20",
+          className
+        )}
+        style={{
+          height: toCssSize(height, "400px"),
+          backgroundImage: `url(${imageSrc})`,
+          backgroundSize: "700px auto",
+          backgroundPositionX: "center",
+          backgroundPositionY: `${backgroundY}px`,
+        }}
+      >
+        {children}
         <svg
-          className="overflow-visible"
-          viewBox={`0 0 ${lensSize} ${lensSize}`}
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[200px] w-[200px] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+          viewBox="0 0 150 150"
           preserveAspectRatio="xMidYMid slice"
           colorInterpolationFilters="sRGB"
           style={{
-            width: lensSize,
-            height: lensSize,
-            filter: "drop-shadow(0 18px 36px rgba(15,23,42,0.24))",
+            borderRadius: "100px",
+            boxShadow: "0 16px 31px rgba(0,0,0,0.4)",
           }}
         >
           <LiquidGlassFilter
             id={filterId}
             assets={heroAssets}
-            width={lensSize}
-            height={lensSize}
-            specularOpacity={0.24}
+            width={150}
+            height={150}
+            specularOpacity={0.2}
             specularSaturation={6}
             withSvgWrapper={false}
           />
           <g filter={`url(#${filterId})`}>
             <image
               href={sourceForLens}
-              width={lensImageSize}
-              height={lensImageSize}
+              width={lensSize}
               preserveAspectRatio="xMidYMid slice"
-              x={-(lensImageSize - lensSize) / 2}
-              y={focalY - (lensImageSize - lensSize) / 2}
+              x={-29}
+              y={focalY}
             />
           </g>
         </svg>

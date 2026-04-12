@@ -7,7 +7,6 @@ import {
   mix,
   useAnimatedNumber,
   useControllableString,
-  useElementSize,
   useFilterId,
 } from "../shared";
 
@@ -41,7 +40,7 @@ export const LiquidSearchbox = defineComponent({
   setup(props, { emit }) {
     const attrs = useAttrs();
     const filterId = useFilterId("liquid-searchbox");
-    const { elementRef, size } = useElementSize<HTMLLabelElement>();
+    const inputRef = ref<HTMLInputElement | null>(null);
     const pressed = ref(false);
     const focused = ref(false);
     const value = useControllableString(
@@ -50,12 +49,12 @@ export const LiquidSearchbox = defineComponent({
       emit
     );
     const focusAmount = useAnimatedNumber(0, {
-      stiffness: 0.14,
-      damping: 0.76,
+      stiffness: 0.18,
+      damping: 0.8,
     });
     const pressAmount = useAnimatedNumber(0, {
       stiffness: 0.22,
-      damping: 0.72,
+      damping: 0.78,
     });
 
     watchEffect(() => {
@@ -66,28 +65,43 @@ export const LiquidSearchbox = defineComponent({
       pressAmount.setTarget(pressed.value ? 1 : 0);
     });
 
+    const clearPressed = () => {
+      pressed.value = false;
+    };
+
+    watchEffect((onCleanup) => {
+      if (!pressed.value || typeof window === "undefined") {
+        return;
+      }
+
+      window.addEventListener("pointerup", clearPressed);
+      window.addEventListener("pointercancel", clearPressed);
+      onCleanup(() => {
+        window.removeEventListener("pointerup", clearPressed);
+        window.removeEventListener("pointercancel", clearPressed);
+      });
+    });
+
     return () => {
       const backgroundOpacity = Math.max(
         mix(0.05, 0.3, pressAmount.value.value),
         mix(0.05, 0.2, focusAmount.value.value)
       );
       const scale =
-        mix(0.985, 1, focusAmount.value.value) *
-        mix(1, 0.992, pressAmount.value.value);
-      const blur = mix(0.8, 0.35, focusAmount.value.value);
-      const scaleRatio = mix(0.72, 0.92, focusAmount.value.value);
-      const specularOpacity = mix(0.18, 0.24, focusAmount.value.value);
-      const specularSaturation = mix(4, 6, focusAmount.value.value);
-      const boxShadow = `0 12px 28px rgba(15,23,42,${mix(0.12, 0.16, focusAmount.value.value)})`;
+        mix(0.8, 1, focusAmount.value.value) *
+        mix(1, 0.99, pressAmount.value.value);
+      const blur = 1;
+      const scaleRatio = 0.7;
+      const specularOpacity = 0.2;
+      const specularSaturation = 4;
+      const boxShadow = "0 4px 16px rgba(0, 0, 0, 0.16)";
 
       return h(
         "label",
         {
-          ref: elementRef,
           class: cn(
-            "relative flex h-14 w-full min-w-0 items-center overflow-hidden rounded-full border px-4 text-black",
-            "border-black/10 bg-white/10 shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
-            "dark:border-white/10 dark:bg-white/8 dark:text-white",
+            "relative flex h-14 w-full max-w-[420px] min-w-0 items-center overflow-hidden rounded-full px-5 text-black",
+            "dark:text-white",
             props.disabled ? "cursor-not-allowed opacity-70" : "cursor-text",
             attrs.class as string | undefined
           ),
@@ -109,12 +123,17 @@ export const LiquidSearchbox = defineComponent({
           onPointerleave: () => {
             pressed.value = false;
           },
+          onClick: () => {
+            if (!props.disabled) {
+              inputRef.value?.focus();
+            }
+          },
         },
         [
           h(LiquidGlassFilter, {
             id: filterId,
             assets: searchboxAssets,
-            width: Math.max(Math.round(size.value.width), 280),
+            width: 420,
             height: 56,
             blur,
             scaleRatio,
@@ -129,19 +148,18 @@ export const LiquidSearchbox = defineComponent({
               backgroundColor: props.disabled
                 ? "rgba(255,255,255,0.12)"
                 : `rgba(255,255,255,${backgroundOpacity})`,
-              boxShadow: focused.value
-                ? `0 0 0 1px rgba(56,189,248,0.24), ${boxShadow}`
-                : boxShadow,
-              willChange: "background-color, box-shadow",
+              boxShadow,
+              transform: "translateZ(0)",
+              willChange: "background-color",
             },
           }),
           h("span", {
-            class:
-              "pointer-events-none relative z-[1] shrink-0 text-black/55 dark:text-white/55",
+            class: "pointer-events-none relative z-[1] shrink-0 opacity-70",
             innerHTML:
-              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
           }),
           h("input", {
+            ref: inputRef,
             ...attrs,
             autocomplete: props.autocomplete,
             disabled: props.disabled,
@@ -150,8 +168,8 @@ export const LiquidSearchbox = defineComponent({
             placeholder: props.placeholder,
             class: cn(
               "relative z-[1] ml-3 min-w-0 flex-1 border-0 bg-transparent p-0 text-[15px] leading-none",
-              "text-black/80 outline-none placeholder:text-black/45 selection:bg-sky-400/25",
-              "dark:text-white/82 dark:placeholder:text-white/42",
+              "text-black/70 outline-none placeholder:text-black/70 selection:bg-sky-400/25",
+              "dark:text-white/70 dark:placeholder:text-white/70",
               "disabled:cursor-not-allowed",
               props.inputClass
             ),
@@ -163,6 +181,11 @@ export const LiquidSearchbox = defineComponent({
             onFocus: (event: FocusEvent) => {
               focused.value = true;
               emit("focus", event);
+            },
+            onMousedown: (event: MouseEvent) => {
+              if (!focused.value) {
+                event.preventDefault();
+              }
             },
             onBlur: (event: FocusEvent) => {
               focused.value = false;

@@ -8,7 +8,7 @@ import {
   useAttrs,
   watchEffect,
 } from "vue";
-import sliderAssets from "virtual:liquidGlassFilterAssets?width=84&height=56&radius=28&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
+import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -20,8 +20,12 @@ import {
   useFilterId,
 } from "../shared";
 
-const THUMB_WIDTH = 84;
-const THUMB_HEIGHT = 56;
+const THUMB_WIDTH = 90;
+const THUMB_HEIGHT = 60;
+const TRACK_HEIGHT = 14;
+const REST_SCALE = 0.6;
+const ACTIVE_SCALE = 1;
+const REST_WIDTH = THUMB_WIDTH * REST_SCALE;
 
 export const LiquidSlider = defineComponent({
   name: "LiquidSlider",
@@ -51,7 +55,6 @@ export const LiquidSlider = defineComponent({
     const attrs = useAttrs();
     const filterId = useFilterId("liquid-slider");
     const pressed = ref(false);
-    const focused = ref(false);
     const safeMax = props.max > props.min ? props.max : props.min + 1;
     const value = useControllableNumber(
       toRef(props, "modelValue"),
@@ -68,7 +71,7 @@ export const LiquidSlider = defineComponent({
     });
 
     watchEffect(() => {
-      const active = !props.disabled && (focused.value || pressed.value);
+      const active = !props.disabled && pressed.value;
       activeAmount.setTarget(active ? 1 : 0);
     });
 
@@ -100,29 +103,29 @@ export const LiquidSlider = defineComponent({
 
     return () => {
       const normalizedValue = clamp(value.value, props.min, safeMax);
-      const blur = mix(0.3, 0.05, activeAmount.value.value);
-      const scaleRatio = mix(0.56, 0.92, activeAmount.value.value);
-      const specularOpacity = mix(0.4, 0.52, activeAmount.value.value);
-      const specularSaturation = mix(7, 9, activeAmount.value.value);
+      const blur = 0;
+      const scaleRatio = mix(0.4, 0.9, activeAmount.value.value);
+      const specularOpacity = 0.4;
+      const specularSaturation = 7;
       const thumbScale = props.disabled
-        ? 0.72
-        : mix(0.68, 1, activeAmount.value.value);
+        ? REST_SCALE
+        : mix(REST_SCALE, ACTIVE_SCALE, activeAmount.value.value);
       const thumbBackground = props.disabled
-        ? "rgba(255,255,255,0.14)"
-        : `rgba(255,255,255,${mix(0.16, 0.28, activeAmount.value.value)})`;
-      const thumbShadow = `0 ${mix(8, 14, activeAmount.value.value)}px ${mix(20, 28, activeAmount.value.value)}px rgba(15,23,42,${mix(0.14, 0.18, activeAmount.value.value)})`;
+        ? "rgba(255,255,255,0.2)"
+        : `rgba(255,255,255,${mix(1, 0.1, activeAmount.value.value)})`;
+      const thumbShadow = "0 3px 14px rgba(0,0,0,0.1)";
 
       return h(
         "div",
         {
           class: cn(
-            "relative w-full min-w-[220px] select-none",
+            "relative w-full max-w-[330px] min-w-[220px] select-none",
             props.disabled ? "opacity-60" : undefined,
             attrs.class as string | undefined
           ),
         },
         [
-          h("div", { class: "relative h-16" }, [
+          h("div", { class: "relative h-[60px]" }, [
             h("input", {
               ...attrs,
               class: cn(
@@ -149,11 +152,9 @@ export const LiquidSlider = defineComponent({
                 pressed.value = false;
               },
               onFocus: (event: FocusEvent) => {
-                focused.value = true;
                 emit("focus", event);
               },
               onBlur: (event: FocusEvent) => {
-                focused.value = false;
                 pressed.value = false;
                 emit("blur", event);
               },
@@ -163,21 +164,28 @@ export const LiquidSlider = defineComponent({
               {
                 class: "absolute inset-y-0",
                 style: {
-                  left: `${THUMB_WIDTH / 2}px`,
-                  right: `${THUMB_WIDTH / 2}px`,
+                  left: `${REST_WIDTH / 2}px`,
+                  right: `${REST_WIDTH / 2}px`,
                 },
               },
               [
                 h(
                   "div",
                   {
-                    class:
-                      "absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-full bg-black/10 dark:bg-white/10",
+                    class: "absolute inset-x-0 overflow-hidden rounded-full",
+                    style: {
+                      top: `${(THUMB_HEIGHT - TRACK_HEIGHT) / 2}px`,
+                      height: `${TRACK_HEIGHT}px`,
+                      backgroundColor: "#89898F66",
+                    },
                   },
                   [
                     h("div", {
-                      class: "h-full rounded-full bg-sky-500/85",
-                      style: { width: `${progressAmount.value.value}%` },
+                      class: "h-full rounded-full",
+                      style: {
+                        width: `${progressAmount.value.value}%`,
+                        backgroundColor: "#0377F7",
+                      },
                     }),
                   ]
                 ),
@@ -192,10 +200,9 @@ export const LiquidSlider = defineComponent({
                   specularSaturation,
                 }),
                 h("div", {
-                  class:
-                    "pointer-events-none absolute border border-white/35 bg-white/16",
+                  class: "pointer-events-none absolute",
                   style: {
-                    top: `${(64 - THUMB_HEIGHT) / 2}px`,
+                    top: "0",
                     width: `${THUMB_WIDTH}px`,
                     height: `${THUMB_HEIGHT}px`,
                     left: `calc(${progressAmount.value.value}% - ${THUMB_WIDTH / 2}px)`,

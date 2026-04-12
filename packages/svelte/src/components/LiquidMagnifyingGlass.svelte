@@ -1,26 +1,71 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
-  import magnifierAssets from "virtual:liquidGlassFilterAssets?width=220&height=150&radius=75&bezelWidth=24&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
+  import { createEventDispatcher, onDestroy, onMount } from "svelte";
+  import magnifierAssets from "virtual:liquidGlassFilterAssets?width=210&height=150&radius=75&bezelWidth=25&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
-  import { clamp, createFilterId } from "../shared";
+  import { clamp, createFilterId, createPhysicsSpring } from "../shared";
 
-  export let lensWidth = 220;
+  export let lensWidth = 210;
   export let lensHeight = 150;
   export let initialX = 24;
   export let initialY = 24;
-  export let magnification = 28;
+  export let magnification = 24;
   export let className = "";
 
   const dispatch = createEventDispatcher();
   const filterId = createFilterId("liquid-magnifier");
+  const specularOpacity = 0.5;
+  const specularSaturation = 9;
 
   let containerEl: HTMLDivElement;
   let lensEl: HTMLDivElement;
-  let active = false;
   let position = { x: initialX, y: initialY };
   let size = { width: 0, height: 0 };
-  let frame = 0;
+  let dragFrame = 0;
+  let dragFrameTime = 0;
+  let isDragging = false;
+  let velocityX = 0;
+
+  const refractionLevel = createPhysicsSpring(0.8, {
+    stiffness: 250,
+    damping: 14,
+  });
+  const magnifyingScaleAmount = createPhysicsSpring(magnification, {
+    stiffness: 250,
+    damping: 14,
+  });
+  const objectScale = createPhysicsSpring(0.8, {
+    stiffness: 340,
+    damping: 20,
+  });
+  const objectScaleY = createPhysicsSpring(0.8, {
+    stiffness: 340,
+    damping: 30,
+  });
+  const objectScaleX = createPhysicsSpring(1, {
+    stiffness: 340,
+    damping: 30,
+  });
+  const shadowSx = createPhysicsSpring(0, {
+    stiffness: 340,
+    damping: 30,
+  });
+  const shadowSy = createPhysicsSpring(4, {
+    stiffness: 340,
+    damping: 30,
+  });
+  const shadowAlpha = createPhysicsSpring(0.16, {
+    stiffness: 220,
+    damping: 24,
+  });
+  const insetShadowAlpha = createPhysicsSpring(0.2, {
+    stiffness: 220,
+    damping: 24,
+  });
+  const shadowBlur = createPhysicsSpring(9, {
+    stiffness: 340,
+    damping: 30,
+  });
   const dragState = {
     pointerId: -1,
     startX: 0,
@@ -33,11 +78,6 @@
     y: initialY,
   };
 
-  function applyLensTransform(nextX: number, nextY: number, nextActive: boolean) {
-    if (!lensEl) return;
-    lensEl.style.transform = `translate3d(${nextX}px, ${nextY}px, 0) scale(${nextActive ? 1 : 0.94})`;
-  }
-
   function updateSize() {
     const rect = containerEl?.getBoundingClientRect();
     size = { width: rect?.width ?? 0, height: rect?.height ?? 0 };
@@ -47,7 +87,40 @@
     };
     livePosition.x = position.x;
     livePosition.y = position.y;
-    applyLensTransform(position.x, position.y, active);
+  }
+
+  function stopDragLoop() {
+    if (!dragFrame || typeof window === "undefined") return;
+    window.cancelAnimationFrame(dragFrame);
+    dragFrame = 0;
+    dragFrameTime = 0;
+  }
+
+  function startDragLoop() {
+    if (dragFrame || typeof window === "undefined") return;
+
+    const tick = (time: number) => {
+      if (!isDragging) {
+        dragFrame = 0;
+        dragFrameTime = 0;
+        return;
+      }
+
+      const deltaSeconds =
+        dragFrameTime === 0 ? 1 / 60 : Math.min((time - dragFrameTime) / 1000, 0.05);
+      dragFrameTime = time;
+
+      const deltaX = livePosition.x - position.x;
+      const rawVelocity = deltaX / deltaSeconds;
+
+      velocityX =
+        Math.abs(rawVelocity) < 12 ? 0 : clamp(rawVelocity, -5000, 5000);
+      position = { x: livePosition.x, y: livePosition.y };
+
+      dragFrame = window.requestAnimationFrame(tick);
+    };
+
+    dragFrame = window.requestAnimationFrame(tick);
   }
 
   function handlePointerMove(event: PointerEvent) {
@@ -63,38 +136,52 @@
       0,
       Math.max(0, size.height - lensHeight)
     );
-
-    if (frame) return;
-
-    frame = window.requestAnimationFrame(() => {
-      frame = 0;
-      applyLensTransform(livePosition.x, livePosition.y, true);
-    });
   }
 
   function handlePointerUp(event: PointerEvent) {
     if (dragState.pointerId !== event.pointerId) return;
     dragState.pointerId = -1;
     lensEl?.releasePointerCapture?.(event.pointerId);
-
-    if (frame) {
-      window.cancelAnimationFrame(frame);
-      frame = 0;
-    }
-
+    isDragging = false;
+    stopDragLoop();
     position = { x: livePosition.x, y: livePosition.y };
-    active = false;
+    velocityX = 0;
   }
 
   onMount(() => {
     updateSize();
 
     return () => {
-      if (frame) {
-        window.cancelAnimationFrame(frame);
-      }
+      stopDragLoop();
     };
   });
+
+  onDestroy(() => {
+    refractionLevel.destroy();
+    magnifyingScaleAmount.destroy();
+    objectScale.destroy();
+    objectScaleY.destroy();
+    objectScaleX.destroy();
+    shadowSx.destroy();
+    shadowSy.destroy();
+    shadowAlpha.destroy();
+    insetShadowAlpha.destroy();
+    shadowBlur.destroy();
+  });
+
+  $: refractionLevel.setTarget(isDragging ? 1 : 0.8);
+  $: magnifyingScaleAmount.setTarget(isDragging ? magnification * 2 : magnification);
+  $: objectScale.setTarget(isDragging ? 1 : 0.8);
+  $: objectScaleY.setTarget(
+    $objectScale * Math.max(0.7, 1 - Math.abs(velocityX) / 5000)
+  );
+  $: objectScaleX.setTarget($objectScale + (1 - $objectScaleY));
+  $: shadowSx.setTarget(isDragging ? 4 : 0);
+  $: shadowSy.setTarget(isDragging ? 16 : 4);
+  $: shadowAlpha.setTarget(isDragging ? 0.22 : 0.16);
+  $: insetShadowAlpha.setTarget(isDragging ? 0.27 : 0.2);
+  $: shadowBlur.setTarget(isDragging ? 24 : 9);
+  $: boxShadow = `${$shadowSx}px ${$shadowSy}px ${$shadowBlur}px rgba(0,0,0,${$shadowAlpha}), inset ${$shadowSx / 2}px ${$shadowSy / 2}px 24px rgba(0,0,0,${$insetShadowAlpha}), inset ${-$shadowSx / 2}px ${-$shadowSy / 2}px 24px rgba(255,255,255,${$insetShadowAlpha})`;
 </script>
 
 <svelte:window on:resize={updateSize} on:pointermove={handlePointerMove} on:pointerup={handlePointerUp} on:pointercancel={handlePointerUp} />
@@ -111,18 +198,18 @@
     assets={magnifierAssets}
     width={lensWidth}
     height={lensHeight}
-    blur={active ? 0 : 0.15}
-    scaleRatio={active ? 1 : 0.82}
-    specularOpacity={0.28}
-    specularSaturation={8}
-    magnifyingScale={magnification}
+    blur={0}
+    scaleRatio={$refractionLevel}
+    specularOpacity={specularOpacity}
+    specularSaturation={specularSaturation}
+    magnifyingScale={$magnifyingScaleAmount}
   />
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     bind:this={lensEl}
-    class="absolute left-0 top-0 z-10 cursor-grab touch-none border border-white/35 bg-white/12 shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition-[transform,box-shadow] duration-200 active:cursor-grabbing"
-    style={`width:${lensWidth}px;height:${lensHeight}px;border-radius:${lensHeight / 2}px;transform:translate3d(${position.x}px, ${position.y}px, 0) scale(${active ? 1 : 0.94});backdrop-filter:url(#${filterId});transition-duration:${active ? "0ms" : "200ms"};will-change:${active ? "transform" : "auto"};box-shadow:${active ? "0 22px 42px rgba(15,23,42,0.22)" : "0 16px 28px rgba(15,23,42,0.18)"}`}
+    class="absolute left-0 top-0 z-10 cursor-grab touch-none border border-white/35 bg-white/12 active:cursor-grabbing"
+    style={`width:${lensWidth}px;height:${lensHeight}px;border-radius:${lensHeight / 2}px;transform:translate3d(${position.x}px, ${position.y}px, 0) scaleX(${$objectScaleX}) scaleY(${$objectScaleY});backdrop-filter:url(#${filterId});will-change:transform,box-shadow;box-shadow:${boxShadow}`}
     on:pointerdown={(event) => {
       updateSize();
       dragState.pointerId = event.pointerId;
@@ -130,9 +217,10 @@
       dragState.startY = event.clientY;
       dragState.baseX = livePosition.x;
       dragState.baseY = livePosition.y;
+      isDragging = true;
+      velocityX = 0;
       lensEl?.setPointerCapture?.(event.pointerId);
-      applyLensTransform(livePosition.x, livePosition.y, true);
-      active = true;
+      startDragLoop();
       dispatch("dragstart", { x: livePosition.x, y: livePosition.y });
     }}
   >

@@ -1,8 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import magnifierAssets from "virtual:liquidGlassFilterAssets?width=220&height=150&radius=75&bezelWidth=24&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
+import magnifierAssets from "virtual:liquidGlassFilterAssets?width=210&height=150&radius=75&bezelWidth=25&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
-import { clamp, cn, useElementSize, useFilterId, toCssSize } from "./shared";
+import {
+  clamp,
+  cn,
+  mix,
+  toCssSize,
+  useAnimatedNumber,
+  useElementSize,
+  useFilterId,
+} from "./shared";
 
 export type LiquidMagnifyingGlassProps = {
   children: React.ReactNode;
@@ -20,14 +28,17 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
   initialX = 24,
   initialY = 24,
   lensHeight = 150,
-  lensWidth = 220,
-  magnification = 28,
+  lensWidth = 210,
+  magnification = 24,
 }) => {
+  const specularOpacity = 0.5;
+  const specularSaturation = 9;
   const filterId = useFilterId("liquid-magnifier");
   const { ref, size } = useElementSize<HTMLDivElement>();
   const lensRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
   const positionRef = useRef({ x: initialX, y: initialY });
+  const moveStateRef = useRef({ x: initialX, time: 0 });
   const dragStateRef = useRef({
     pointerId: -1,
     startX: 0,
@@ -35,21 +46,23 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
     baseX: initialX,
     baseY: initialY,
   });
-  const [active, setActive] = useState(false);
   const [position, setPosition] = useState({ x: initialX, y: initialY });
-
-  const applyLensTransform = (
-    nextPosition: { x: number; y: number },
-    nextActive: boolean
-  ) => {
-    const node = lensRef.current;
-
-    if (!node) {
-      return;
-    }
-
-    node.style.transform = `translate3d(${nextPosition.x}px, ${nextPosition.y}px, 0) scale(${nextActive ? 1 : 0.94})`;
-  };
+  const activeAmount = useAnimatedNumber(0, {
+    stiffness: 0.2,
+    damping: 0.74,
+  });
+  const velocityX = useAnimatedNumber(0, {
+    stiffness: 0.18,
+    damping: 0.8,
+  });
+  const scaleYAmount = useAnimatedNumber(0.8, {
+    stiffness: 0.34,
+    damping: 0.82,
+  });
+  const scaleXAmount = useAnimatedNumber(1, {
+    stiffness: 0.34,
+    damping: 0.82,
+  });
 
   useEffect(() => {
     const maxX = Math.max(0, size.width - lensWidth);
@@ -60,12 +73,7 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
     };
     positionRef.current = nextPosition;
     setPosition(nextPosition);
-    applyLensTransform(nextPosition, active);
   }, [initialX, initialY, lensHeight, lensWidth, size.height, size.width]);
-
-  useEffect(() => {
-    applyLensTransform(positionRef.current, active);
-  }, [active]);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
@@ -93,8 +101,16 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
       }
 
       frameRef.current = window.requestAnimationFrame(() => {
+        const now = performance.now();
+        const deltaTime = Math.max(1, now - moveStateRef.current.time);
+        const rawVelocity =
+          ((positionRef.current.x - moveStateRef.current.x) / deltaTime) * 1000;
+        const nextVelocity =
+          Math.abs(rawVelocity) < 24 ? 0 : clamp(rawVelocity, -5000, 5000);
+        moveStateRef.current = { x: positionRef.current.x, time: now };
         frameRef.current = null;
-        applyLensTransform(positionRef.current, true);
+        velocityX.setTarget(nextVelocity);
+        setPosition(positionRef.current);
       });
     };
 
@@ -112,7 +128,8 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
       }
 
       setPosition(positionRef.current);
-      setActive(false);
+      velocityX.setTarget(0);
+      activeAmount.setTarget(0);
     };
 
     window.addEventListener("pointermove", onPointerMove);
@@ -129,6 +146,26 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
       window.removeEventListener("pointercancel", onPointerUp);
     };
   }, [lensHeight, lensWidth, size.height, size.width]);
+
+  const baseScale = mix(0.8, 1, activeAmount.value);
+  useEffect(() => {
+    const targetScaleY =
+      baseScale * Math.max(0.7, 1 - Math.abs(velocityX.value) / 5000);
+    scaleYAmount.setTarget(targetScaleY);
+  }, [baseScale, velocityX.value]);
+
+  useEffect(() => {
+    scaleXAmount.setTarget(baseScale + (1 - scaleYAmount.value));
+  }, [baseScale, scaleYAmount.value]);
+
+  const scaleY = scaleYAmount.value;
+  const scaleX = scaleXAmount.value;
+  const shadowSx = mix(0, 4, activeAmount.value);
+  const shadowSy = mix(4, 16, activeAmount.value);
+  const shadowAlpha = mix(0.16, 0.22, activeAmount.value);
+  const insetShadowAlpha = mix(0.2, 0.27, activeAmount.value);
+  const shadowBlur = mix(9, 24, activeAmount.value);
+  const boxShadow = `${shadowSx}px ${shadowSy}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}), inset ${shadowSx / 2}px ${shadowSy / 2}px 24px rgba(0,0,0,${insetShadowAlpha}), inset ${-shadowSx / 2}px ${-shadowSy / 2}px 24px rgba(255,255,255,${insetShadowAlpha})`;
 
   return (
     <div
@@ -148,28 +185,29 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
         assets={magnifierAssets}
         width={lensWidth}
         height={lensHeight}
-        blur={active ? 0 : 0.15}
-        scaleRatio={active ? 1 : 0.82}
-        specularOpacity={0.28}
-        specularSaturation={8}
-        magnifyingScale={magnification}
+        blur={0}
+        scaleRatio={mix(0.8, 1, activeAmount.value)}
+        specularOpacity={specularOpacity}
+        specularSaturation={specularSaturation}
+        magnifyingScale={mix(
+          magnification,
+          magnification * 2,
+          activeAmount.value
+        )}
       />
 
       <div
         ref={lensRef}
-        className="absolute left-0 top-0 z-10 cursor-grab touch-none border border-white/35 bg-white/12 shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition-[transform,box-shadow] duration-200 active:cursor-grabbing"
+        className="absolute left-0 top-0 z-10 cursor-grab touch-none border border-white/35 bg-white/12 active:cursor-grabbing"
         style={{
           width: lensWidth,
           height: lensHeight,
           borderRadius: lensHeight / 2,
-          transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${active ? 1 : 0.94})`,
+          transform: `translate3d(${position.x}px, ${position.y}px, 0) scaleX(${scaleX}) scaleY(${scaleY})`,
           backdropFilter: `url(#${filterId})`,
-          transitionDuration: active ? "0ms" : "200ms",
-          willChange: active ? "transform" : undefined,
-          boxShadow: active
-            ? "0 22px 42px rgba(15,23,42,0.22)"
-            : "0 16px 28px rgba(15,23,42,0.18)",
-        }}
+          willChange: "transform, box-shadow",
+          boxShadow,
+        } as React.CSSProperties}
         onPointerDown={(event) => {
           dragStateRef.current = {
             pointerId: event.pointerId,
@@ -178,9 +216,15 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
             baseX: positionRef.current.x,
             baseY: positionRef.current.y,
           };
+          moveStateRef.current = {
+            x: positionRef.current.x,
+            time: performance.now(),
+          };
+          velocityX.jump(0);
+          scaleYAmount.jump(mix(0.8, 1, activeAmount.value));
+          scaleXAmount.jump(1);
           lensRef.current?.setPointerCapture?.(event.pointerId);
-          applyLensTransform(positionRef.current, true);
-          setActive(true);
+          activeAmount.setTarget(1);
         }}
       >
         <div
