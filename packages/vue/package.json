@@ -1,6 +1,6 @@
 {
   "name": "@lollipopkit/liquid-glass-vue",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vue liquid glass components for Vite projects.",
   "license": "MIT",
   "type": "module",
@@ -46,10 +46,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@lollipopkit/liquid-glass": "0.1.0"
+    "@lollipopkit/liquid-glass": "0.1.1"
   },
   "peerDependencies": {
-    "@lollipopkit/liquid-glass-vite": "0.1.0",
+    "@lollipopkit/liquid-glass-vite": "0.1.1",
     "vue": "^3.5.0"
   }
 }

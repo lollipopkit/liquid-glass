@@ -1,6 +1,6 @@
 {
   "name": "@lollipopkit/liquid-glass-svelte",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Svelte liquid glass components for Vite projects.",
   "license": "MIT",
   "type": "module",
@@ -48,10 +48,10 @@
     "typecheck": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@lollipopkit/liquid-glass": "0.1.0"
+    "@lollipopkit/liquid-glass": "0.1.1"
   },
   "peerDependencies": {
-    "@lollipopkit/liquid-glass-vite": "0.1.0",
+    "@lollipopkit/liquid-glass-vite": "0.1.1",
     "svelte": "^5.0.0"
   }
 }
