@@ -26,6 +26,8 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
   const filterId = useFilterId("liquid-magnifier");
   const { ref, size } = useElementSize<HTMLDivElement>();
   const lensRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const positionRef = useRef({ x: initialX, y: initialY });
   const dragStateRef = useRef({
     pointerId: -1,
     startX: 0,
@@ -36,14 +38,34 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
   const [active, setActive] = useState(false);
   const [position, setPosition] = useState({ x: initialX, y: initialY });
 
+  const applyLensTransform = (
+    nextPosition: { x: number; y: number },
+    nextActive: boolean
+  ) => {
+    const node = lensRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    node.style.transform = `translate3d(${nextPosition.x}px, ${nextPosition.y}px, 0) scale(${nextActive ? 1 : 0.94})`;
+  };
+
   useEffect(() => {
     const maxX = Math.max(0, size.width - lensWidth);
     const maxY = Math.max(0, size.height - lensHeight);
-    setPosition({
+    const nextPosition = {
       x: clamp(initialX, 0, maxX),
       y: clamp(initialY, 0, maxY),
-    });
+    };
+    positionRef.current = nextPosition;
+    setPosition(nextPosition);
+    applyLensTransform(nextPosition, active);
   }, [initialX, initialY, lensHeight, lensWidth, size.height, size.width]);
+
+  useEffect(() => {
+    applyLensTransform(positionRef.current, active);
+  }, [active]);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
@@ -64,7 +86,16 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
         maxY
       );
 
-      setPosition({ x: nextX, y: nextY });
+      positionRef.current = { x: nextX, y: nextY };
+
+      if (frameRef.current !== null) {
+        return;
+      }
+
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        applyLensTransform(positionRef.current, true);
+      });
     };
 
     const onPointerUp = (event: PointerEvent) => {
@@ -73,6 +104,14 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
       }
 
       dragStateRef.current.pointerId = -1;
+      lensRef.current?.releasePointerCapture?.(event.pointerId);
+
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+
+      setPosition(positionRef.current);
       setActive(false);
     };
 
@@ -81,6 +120,10 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
     window.addEventListener("pointercancel", onPointerUp);
 
     return () => {
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+      }
+
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
@@ -114,13 +157,15 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
 
       <div
         ref={lensRef}
-        className="absolute left-0 top-0 z-10 cursor-grab border border-white/35 bg-white/12 shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition-[transform,box-shadow] duration-200 active:cursor-grabbing"
+        className="absolute left-0 top-0 z-10 cursor-grab touch-none border border-white/35 bg-white/12 shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition-[transform,box-shadow] duration-200 active:cursor-grabbing"
         style={{
           width: lensWidth,
           height: lensHeight,
           borderRadius: lensHeight / 2,
-          transform: `translate(${position.x}px, ${position.y}px) scale(${active ? 1 : 0.94})`,
+          transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${active ? 1 : 0.94})`,
           backdropFilter: `url(#${filterId})`,
+          transitionDuration: active ? "0ms" : "200ms",
+          willChange: active ? "transform" : undefined,
           boxShadow: active
             ? "0 22px 42px rgba(15,23,42,0.22)"
             : "0 16px 28px rgba(15,23,42,0.18)",
@@ -130,10 +175,11 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
-            baseX: position.x,
-            baseY: position.y,
+            baseX: positionRef.current.x,
+            baseY: positionRef.current.y,
           };
           lensRef.current?.setPointerCapture?.(event.pointerId);
+          applyLensTransform(positionRef.current, true);
           setActive(true);
         }}
       >

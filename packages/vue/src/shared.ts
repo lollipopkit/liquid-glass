@@ -109,3 +109,82 @@ export function toCssSize(
 
   return value ?? fallback;
 }
+
+export function mix(from: number, to: number, ratio: number) {
+  return from + (to - from) * ratio;
+}
+
+type AnimatedNumberOptions = {
+  stiffness?: number;
+  damping?: number;
+  precision?: number;
+};
+
+export function useAnimatedNumber(
+  initialValue: number,
+  options: AnimatedNumberOptions = {}
+) {
+  const value = ref(initialValue);
+  const stiffness = options.stiffness ?? 0.18;
+  const damping = options.damping ?? 0.78;
+  const precision = options.precision ?? 0.001;
+  let current = initialValue;
+  let target = initialValue;
+  let velocity = 0;
+  let frame = 0;
+
+  const stop = () => {
+    if (!frame || typeof window === "undefined") {
+      return;
+    }
+
+    window.cancelAnimationFrame(frame);
+    frame = 0;
+  };
+
+  const tick = () => {
+    frame = 0;
+
+    current += velocity;
+    velocity += (target - current) * stiffness;
+    velocity *= damping;
+
+    if (Math.abs(target - current) < precision && Math.abs(velocity) < precision) {
+      current = target;
+      velocity = 0;
+      value.value = current;
+      return;
+    }
+
+    value.value = current;
+
+    if (typeof window !== "undefined") {
+      frame = window.requestAnimationFrame(tick);
+    }
+  };
+
+  const ensureTicking = () => {
+    if (frame || typeof window === "undefined") {
+      return;
+    }
+
+    frame = window.requestAnimationFrame(tick);
+  };
+
+  onUnmounted(stop);
+
+  return {
+    value,
+    setTarget(nextValue: number) {
+      target = nextValue;
+      ensureTicking();
+    },
+    jump(nextValue: number) {
+      current = nextValue;
+      target = nextValue;
+      velocity = 0;
+      value.value = nextValue;
+      stop();
+    },
+  };
+}

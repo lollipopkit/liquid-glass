@@ -2,7 +2,7 @@ import { defineComponent, h, onMounted, onUnmounted, ref, useAttrs } from "vue";
 import heroAssets from "virtual:liquidGlassFilterAssets?width=180&height=180&radius=90&bezelWidth=34&glassThickness=120&refractiveIndex=1.5&bezelType=convex_squircle";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
-import { cn, toCssSize, useFilterId } from "../shared";
+import { cn, toCssSize, useAnimatedNumber, useFilterId } from "../shared";
 
 export const LiquidParallaxHero = defineComponent({
   name: "LiquidParallaxHero",
@@ -31,7 +31,11 @@ export const LiquidParallaxHero = defineComponent({
     const attrs = useAttrs();
     const filterId = useFilterId("liquid-parallax-hero");
     const containerRef = ref<HTMLDivElement | null>(null);
-    const progress = ref(0.5);
+    const progress = useAnimatedNumber(0.5, {
+      stiffness: 0.12,
+      damping: 0.82,
+    });
+    let frame = 0;
 
     const updateProgress = () => {
       const node = containerRef.value;
@@ -43,24 +47,38 @@ export const LiquidParallaxHero = defineComponent({
       const rect = node.getBoundingClientRect();
       const viewportHeight = window.innerHeight || 1;
       const value = (viewportHeight - rect.top) / (viewportHeight + rect.height);
-      progress.value = Math.max(0, Math.min(1, value));
+      progress.setTarget(Math.max(0, Math.min(1, value)));
+    };
+
+    const scheduleUpdate = () => {
+      if (frame || typeof window === "undefined") {
+        return;
+      }
+
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateProgress();
+      });
     };
 
     onMounted(() => {
-      updateProgress();
-      window.addEventListener("scroll", updateProgress, { passive: true });
-      window.addEventListener("resize", updateProgress);
+      scheduleUpdate();
+      window.addEventListener("scroll", scheduleUpdate, { passive: true });
+      window.addEventListener("resize", scheduleUpdate);
     });
 
     onUnmounted(() => {
-      window.removeEventListener("scroll", updateProgress);
-      window.removeEventListener("resize", updateProgress);
+      if (frame && typeof window !== "undefined") {
+        window.cancelAnimationFrame(frame);
+      }
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     });
 
     return () => {
       const backgroundTravel = 180 * props.parallaxSpeed;
-      const backgroundY = (progress.value - 0.5) * 2 * backgroundTravel;
-      const focalY = (progress.value - 0.5) * 2 * backgroundTravel * 0.72;
+      const backgroundY = (progress.value.value - 0.5) * 2 * backgroundTravel;
+      const focalY = (progress.value.value - 0.5) * 2 * backgroundTravel * 0.72;
       const lensImageSize = props.lensSize * 1.34;
 
       return h(
@@ -80,10 +98,10 @@ export const LiquidParallaxHero = defineComponent({
           h("img", {
             src: props.imageSrc,
             alt: props.alt,
-            class:
-              "absolute inset-0 h-[118%] w-full object-cover transition-transform duration-150",
+            class: "absolute inset-0 h-[118%] w-full object-cover",
             style: {
               transform: `translateY(${backgroundY}px)`,
+              willChange: "transform",
             },
           }),
           h("div", {

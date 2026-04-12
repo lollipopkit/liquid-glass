@@ -4,11 +4,16 @@
   "license": "MIT",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "build": "node ./scripts/run-workspaces.mjs build",
     "changeset": "changeset",
+    "demo:build": "npm run build --workspace liquid-glass-demo",
+    "demo:dev": "npm run dev --workspace liquid-glass-demo",
+    "demo:preview": "npm run preview --workspace liquid-glass-demo",
+    "demo:typecheck": "npm run typecheck --workspace liquid-glass-demo",
     "publish-packages": "node ./scripts/publish-packages.mjs publish",
     "release": "node ./scripts/publish-packages.mjs release",
     "sync-versions": "node ./scripts/publish-packages.mjs sync",

@@ -1,8 +1,23 @@
-import { defineComponent, h, ref, toRef, useAttrs } from "vue";
+import {
+  defineComponent,
+  h,
+  onMounted,
+  onUnmounted,
+  ref,
+  toRef,
+  useAttrs,
+  watchEffect,
+} from "vue";
 import switchAssets from "virtual:liquidGlassFilterAssets?width=58&height=58&radius=29&bezelWidth=16&glassThickness=58&refractiveIndex=1.5&bezelType=lip";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
-import { cn, useControllableBoolean, useFilterId } from "../shared";
+import {
+  cn,
+  mix,
+  useAnimatedNumber,
+  useControllableBoolean,
+  useFilterId,
+} from "../shared";
 
 const THUMB_SIZE = 58;
 const TRACK_WIDTH = 92;
@@ -34,9 +49,50 @@ export const LiquidSwitch = defineComponent({
       props.defaultValue,
       emit
     );
+    const activeAmount = useAnimatedNumber(0, {
+      stiffness: 0.18,
+      damping: 0.76,
+    });
+    const checkedAmount = useAnimatedNumber(value.value ? 1 : 0, {
+      stiffness: 0.16,
+      damping: 0.74,
+    });
+
+    watchEffect(() => {
+      const active = !props.disabled && (pressed.value || focused.value);
+      activeAmount.setTarget(active ? 1 : 0);
+    });
+
+    watchEffect(() => {
+      checkedAmount.setTarget(value.value ? 1 : 0);
+    });
+
+    const onPointerUp = () => {
+      pressed.value = false;
+    };
+
+    onMounted(() => {
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerUp);
+    });
+
+    onUnmounted(() => {
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    });
 
     return () => {
-      const active = !props.disabled && (pressed.value || focused.value);
+      const trackBackground = `rgba(${mix(148, 56, checkedAmount.value.value)},${mix(148, 189, checkedAmount.value.value)},${mix(159, 248, checkedAmount.value.value)},${mix(0.34, 0.48, checkedAmount.value.value)})`;
+      const thumbLeft = (TRACK_WIDTH - THUMB_SIZE) * checkedAmount.value.value;
+      const blur = mix(0.18, 0.08, activeAmount.value.value);
+      const scaleRatio = mix(0.62, 0.94, activeAmount.value.value);
+      const specularOpacity = mix(0.5, 0.6, activeAmount.value.value);
+      const specularSaturation = mix(6, 8, activeAmount.value.value);
+      const thumbScale = props.disabled
+        ? 0.76
+        : mix(0.8, 0.94, activeAmount.value.value);
+      const thumbBackground = `rgba(255,255,255,${mix(0.18, 0.3, checkedAmount.value.value)})`;
+      const thumbShadow = `0 ${mix(8, 14, activeAmount.value.value)}px ${mix(22, 28, activeAmount.value.value)}px rgba(15,23,42,${mix(0.14, 0.18, activeAmount.value.value)})`;
 
       return h(
         "label",
@@ -90,17 +146,16 @@ export const LiquidSwitch = defineComponent({
             [
               h("div", {
                 class:
-                  "absolute inset-x-0 border border-black/8 transition-[background-color,box-shadow] duration-200 dark:border-white/8",
+                  "absolute inset-x-0 border border-black/8 dark:border-white/8",
                 style: {
                   top: `${TRACK_PADDING}px`,
                   height: `${TRACK_HEIGHT}px`,
                   borderRadius: `${TRACK_HEIGHT / 2}px`,
-                  backgroundColor: value.value
-                    ? "rgba(56,189,248,0.48)"
-                    : "rgba(148,148,159,0.34)",
+                  backgroundColor: trackBackground,
                   boxShadow: focused.value
                     ? "0 0 0 1px rgba(56,189,248,0.22)"
                     : "0 10px 24px rgba(15,23,42,0.08)",
+                  willChange: "background-color",
                 },
               }),
               h(LiquidGlassFilter, {
@@ -108,28 +163,25 @@ export const LiquidSwitch = defineComponent({
                 assets: switchAssets,
                 width: THUMB_SIZE,
                 height: THUMB_SIZE,
-                blur: active ? 0.08 : 0.18,
-                scaleRatio: active ? 0.94 : 0.62,
-                specularOpacity: active ? 0.6 : 0.5,
-                specularSaturation: active ? 8 : 6,
+                blur,
+                scaleRatio,
+                specularOpacity,
+                specularSaturation,
               }),
               h("div", {
                 class:
-                  "pointer-events-none absolute border border-white/35 bg-white/16 shadow-[0_10px_24px_rgba(15,23,42,0.15)] transition-[left,transform,background-color,box-shadow] duration-200",
+                  "pointer-events-none absolute border border-white/35 bg-white/16",
                 style: {
                   top: 0,
                   width: `${THUMB_SIZE}px`,
                   height: `${THUMB_SIZE}px`,
-                  left: value.value ? `${TRACK_WIDTH - THUMB_SIZE}px` : "0px",
+                  left: `${thumbLeft}px`,
                   borderRadius: `${THUMB_SIZE / 2}px`,
                   backdropFilter: `url(#${filterId})`,
-                  transform: `scale(${props.disabled ? 0.76 : active ? 0.94 : 0.8})`,
-                  backgroundColor: value.value
-                    ? "rgba(255,255,255,0.3)"
-                    : "rgba(255,255,255,0.18)",
-                  boxShadow: active
-                    ? "0 14px 28px rgba(15,23,42,0.18)"
-                    : "0 8px 22px rgba(15,23,42,0.14)",
+                  transform: `scale(${thumbScale})`,
+                  backgroundColor: thumbBackground,
+                  boxShadow: thumbShadow,
+                  willChange: "left, transform, background-color, box-shadow",
                 },
               }),
             ]

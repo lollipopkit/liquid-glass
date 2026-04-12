@@ -33,6 +33,18 @@ bun run typecheck
 bun run build
 ```
 
+```bash
+npm run demo:dev
+npm run demo:build
+npm run demo:preview
+```
+
+## Demo App
+
+The migrated Svelte preview lives in `apps/liquid-glass-demo` and renders the
+workspace sources for `@lollipopkit/liquid-glass-svelte` and
+`@lollipopkit/liquid-glass-vite` through local Vite aliases.
+
 ## Vite Requirement
 
 The UI packages currently require Vite. Register the plugin from `@lollipopkit/liquid-glass-vite` in the consumer app before using any React/Vue/Svelte component package.

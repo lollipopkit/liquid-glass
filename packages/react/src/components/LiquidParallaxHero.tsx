@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import heroAssets from "virtual:liquidGlassFilterAssets?width=180&height=180&radius=90&bezelWidth=34&glassThickness=120&refractiveIndex=1.5&bezelType=convex_squircle";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
-import { cn, toCssSize, useFilterId } from "./shared";
+import { cn, toCssSize, useAnimatedNumber, useFilterId } from "./shared";
 
 export type LiquidParallaxHeroProps = {
   imageSrc: string;
@@ -27,11 +27,15 @@ export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
 }) => {
   const filterId = useFilterId("liquid-parallax-hero");
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [progress, setProgress] = useState(0.5);
+  const frameRef = useRef(0);
+  const progress = useAnimatedNumber(0.5, {
+    stiffness: 0.12,
+    damping: 0.82,
+  });
   const sourceForLens = focalImageSrc ?? imageSrc;
   const backgroundTravel = 180 * parallaxSpeed;
-  const backgroundY = (progress - 0.5) * 2 * backgroundTravel;
-  const focalY = (progress - 0.5) * 2 * backgroundTravel * 0.72;
+  const backgroundY = (progress.value - 0.5) * 2 * backgroundTravel;
+  const focalY = (progress.value - 0.5) * 2 * backgroundTravel * 0.72;
   const lensImageSize = lensSize * 1.34;
 
   useEffect(() => {
@@ -45,16 +49,30 @@ export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
       const rect = node.getBoundingClientRect();
       const viewportHeight = window.innerHeight || 1;
       const value = (viewportHeight - rect.top) / (viewportHeight + rect.height);
-      setProgress(Math.max(0, Math.min(1, value)));
+      progress.setTarget(Math.max(0, Math.min(1, value)));
     };
 
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    const scheduleUpdate = () => {
+      if (frameRef.current || typeof window === "undefined") {
+        return;
+      }
+
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = 0;
+        update();
+      });
+    };
+
+    scheduleUpdate();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
 
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      if (frameRef.current && typeof window !== "undefined") {
+        window.cancelAnimationFrame(frameRef.current);
+      }
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     };
   }, []);
 
@@ -71,8 +89,8 @@ export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
       <img
         src={imageSrc}
         alt={alt}
-        className="absolute inset-0 h-[118%] w-full object-cover transition-transform duration-150"
-        style={{ transform: `translateY(${backgroundY}px)` }}
+        className="absolute inset-0 h-[118%] w-full object-cover"
+        style={{ transform: `translateY(${backgroundY}px)`, willChange: "transform" }}
       />
       <div className="absolute inset-0 bg-[radial-gradient(120%_100%_at_50%_0%,rgba(255,255,255,0.15),transparent_48%),linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.4))]" />
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/10 to-transparent" />

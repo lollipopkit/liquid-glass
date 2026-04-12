@@ -1,8 +1,24 @@
-import { defineComponent, h, ref, toRef, useAttrs } from "vue";
+import {
+  defineComponent,
+  h,
+  onMounted,
+  onUnmounted,
+  ref,
+  toRef,
+  useAttrs,
+  watchEffect,
+} from "vue";
 import sliderAssets from "virtual:liquidGlassFilterAssets?width=84&height=56&radius=28&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
-import { clamp, cn, useControllableNumber, useFilterId } from "../shared";
+import {
+  clamp,
+  cn,
+  mix,
+  useAnimatedNumber,
+  useControllableNumber,
+  useFilterId,
+} from "../shared";
 
 const THUMB_WIDTH = 84;
 const THUMB_HEIGHT = 56;
@@ -42,11 +58,59 @@ export const LiquidSlider = defineComponent({
       clamp(props.defaultValue ?? props.min, props.min, safeMax),
       emit
     );
+    const activeAmount = useAnimatedNumber(0, {
+      stiffness: 0.18,
+      damping: 0.76,
+    });
+    const progressAmount = useAnimatedNumber(0, {
+      stiffness: 0.26,
+      damping: 0.72,
+    });
+
+    watchEffect(() => {
+      const active = !props.disabled && (focused.value || pressed.value);
+      activeAmount.setTarget(active ? 1 : 0);
+    });
+
+    watchEffect(() => {
+      const normalizedValue = clamp(value.value, props.min, safeMax);
+      const progress = ((normalizedValue - props.min) / (safeMax - props.min)) * 100;
+
+      if (pressed.value) {
+        progressAmount.jump(progress);
+        return;
+      }
+
+      progressAmount.setTarget(progress);
+    });
+
+    const onPointerUp = () => {
+      pressed.value = false;
+    };
+
+    onMounted(() => {
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerUp);
+    });
+
+    onUnmounted(() => {
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    });
 
     return () => {
       const normalizedValue = clamp(value.value, props.min, safeMax);
-      const progress = ((normalizedValue - props.min) / (safeMax - props.min)) * 100;
-      const active = !props.disabled && (focused.value || pressed.value);
+      const blur = mix(0.3, 0.05, activeAmount.value.value);
+      const scaleRatio = mix(0.56, 0.92, activeAmount.value.value);
+      const specularOpacity = mix(0.4, 0.52, activeAmount.value.value);
+      const specularSaturation = mix(7, 9, activeAmount.value.value);
+      const thumbScale = props.disabled
+        ? 0.72
+        : mix(0.68, 1, activeAmount.value.value);
+      const thumbBackground = props.disabled
+        ? "rgba(255,255,255,0.14)"
+        : `rgba(255,255,255,${mix(0.16, 0.28, activeAmount.value.value)})`;
+      const thumbShadow = `0 ${mix(8, 14, activeAmount.value.value)}px ${mix(20, 28, activeAmount.value.value)}px rgba(15,23,42,${mix(0.14, 0.18, activeAmount.value.value)})`;
 
       return h(
         "div",
@@ -62,7 +126,7 @@ export const LiquidSlider = defineComponent({
             h("input", {
               ...attrs,
               class: cn(
-                "absolute inset-0 z-20 m-0 h-full w-full cursor-pointer opacity-0",
+                "absolute inset-0 z-20 m-0 h-full w-full cursor-pointer touch-none opacity-0",
                 props.disabled ? "cursor-not-allowed" : undefined
               ),
               type: "range",
@@ -112,9 +176,8 @@ export const LiquidSlider = defineComponent({
                   },
                   [
                     h("div", {
-                      class:
-                        "h-full rounded-full bg-sky-500/85 transition-[width] duration-200",
-                      style: { width: `${progress}%` },
+                      class: "h-full rounded-full bg-sky-500/85",
+                      style: { width: `${progressAmount.value.value}%` },
                     }),
                   ]
                 ),
@@ -123,30 +186,25 @@ export const LiquidSlider = defineComponent({
                   assets: sliderAssets,
                   width: THUMB_WIDTH,
                   height: THUMB_HEIGHT,
-                  blur: active ? 0.1 : 0.3,
-                  scaleRatio: active ? 0.92 : 0.56,
-                  specularOpacity: active ? 0.52 : 0.4,
-                  specularSaturation: active ? 9 : 7,
+                  blur,
+                  scaleRatio,
+                  specularOpacity,
+                  specularSaturation,
                 }),
                 h("div", {
                   class:
-                    "pointer-events-none absolute border border-white/35 bg-white/16 shadow-[0_8px_26px_rgba(15,23,42,0.15)] transition-[left,transform,background-color,box-shadow] duration-200",
+                    "pointer-events-none absolute border border-white/35 bg-white/16",
                   style: {
                     top: `${(64 - THUMB_HEIGHT) / 2}px`,
                     width: `${THUMB_WIDTH}px`,
                     height: `${THUMB_HEIGHT}px`,
-                    left: `calc(${progress}% - ${THUMB_WIDTH / 2}px)`,
+                    left: `calc(${progressAmount.value.value}% - ${THUMB_WIDTH / 2}px)`,
                     borderRadius: `${THUMB_HEIGHT / 2}px`,
                     backdropFilter: `url(#${filterId})`,
-                    transform: `scale(${props.disabled ? 0.72 : active ? 1 : 0.7})`,
-                    backgroundColor: props.disabled
-                      ? "rgba(255,255,255,0.14)"
-                      : active
-                        ? "rgba(255,255,255,0.28)"
-                        : "rgba(255,255,255,0.16)",
-                    boxShadow: active
-                      ? "0 14px 28px rgba(15,23,42,0.18)"
-                      : "0 8px 20px rgba(15,23,42,0.14)",
+                    transform: `scale(${thumbScale})`,
+                    backgroundColor: thumbBackground,
+                    boxShadow: thumbShadow,
+                    willChange: "left, transform, background-color, box-shadow",
                   },
                 }),
               ]

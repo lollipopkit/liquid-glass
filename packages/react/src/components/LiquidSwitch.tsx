@@ -2,7 +2,13 @@ import React, { useEffect, useState } from "react";
 import switchAssets from "virtual:liquidGlassFilterAssets?width=58&height=58&radius=29&bezelWidth=16&glassThickness=58&refractiveIndex=1.5&bezelType=lip";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
-import { cn, useControllableValue, useFilterId } from "./shared";
+import {
+  cn,
+  mix,
+  useAnimatedNumber,
+  useControllableValue,
+  useFilterId,
+} from "./shared";
 
 export type LiquidSwitchProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -37,6 +43,22 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
     onCheckedChange
   );
   const active = !disabled && (pressed || focused);
+  const activeAmount = useAnimatedNumber(0, {
+    stiffness: 0.18,
+    damping: 0.76,
+  });
+  const checkedAmount = useAnimatedNumber(checked ? 1 : 0, {
+    stiffness: 0.16,
+    damping: 0.74,
+  });
+
+  useEffect(() => {
+    activeAmount.setTarget(active ? 1 : 0);
+  }, [active]);
+
+  useEffect(() => {
+    checkedAmount.setTarget(checked ? 1 : 0);
+  }, [checked]);
 
   useEffect(() => {
     if (!pressed) {
@@ -44,9 +66,24 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
     }
 
     const onPointerUp = () => setPressed(false);
+    const onPointerCancel = () => setPressed(false);
     window.addEventListener("pointerup", onPointerUp);
-    return () => window.removeEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
+    return () => {
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
+    };
   }, [pressed]);
+
+  const trackBackground = `rgba(${mix(148, 56, checkedAmount.value)},${mix(148, 189, checkedAmount.value)},${mix(159, 248, checkedAmount.value)},${mix(0.34, 0.48, checkedAmount.value)})`;
+  const thumbLeft = (TRACK_WIDTH - THUMB_SIZE) * checkedAmount.value;
+  const blur = mix(0.18, 0.08, activeAmount.value);
+  const scaleRatio = mix(0.62, 0.94, activeAmount.value);
+  const specularOpacity = mix(0.5, 0.6, activeAmount.value);
+  const specularSaturation = mix(6, 8, activeAmount.value);
+  const thumbScale = disabled ? 0.76 : mix(0.8, 0.94, activeAmount.value);
+  const thumbBackground = `rgba(255,255,255,${mix(0.18, 0.3, checkedAmount.value)})`;
+  const thumbShadow = `0 ${mix(8, 14, activeAmount.value)}px ${mix(22, 28, activeAmount.value)}px rgba(15,23,42,${mix(0.14, 0.18, activeAmount.value)})`;
 
   return (
     <label
@@ -88,17 +125,16 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
         style={{ left: TRACK_PADDING, right: TRACK_PADDING }}
       >
         <div
-          className="absolute inset-x-0 border border-black/8 transition-[background-color,box-shadow] duration-200 dark:border-white/8"
+          className="absolute inset-x-0 border border-black/8 dark:border-white/8"
           style={{
             top: TRACK_PADDING,
             height: TRACK_HEIGHT,
             borderRadius: TRACK_HEIGHT / 2,
-            backgroundColor: checked
-              ? "rgba(56,189,248,0.48)"
-              : "rgba(148,148,159,0.34)",
+            backgroundColor: trackBackground,
             boxShadow: focused
               ? "0 0 0 1px rgba(56,189,248,0.22)"
               : "0 10px 24px rgba(15,23,42,0.08)",
+            willChange: "background-color",
           }}
         />
 
@@ -107,28 +143,25 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
           assets={switchAssets}
           width={THUMB_SIZE}
           height={THUMB_SIZE}
-          blur={active ? 0.08 : 0.18}
-          scaleRatio={active ? 0.94 : 0.62}
-          specularOpacity={active ? 0.6 : 0.5}
-          specularSaturation={active ? 8 : 6}
+          blur={blur}
+          scaleRatio={scaleRatio}
+          specularOpacity={specularOpacity}
+          specularSaturation={specularSaturation}
         />
 
         <div
-          className="pointer-events-none absolute border border-white/35 bg-white/16 shadow-[0_10px_24px_rgba(15,23,42,0.15)] transition-[left,transform,background-color,box-shadow] duration-200"
+          className="pointer-events-none absolute border border-white/35 bg-white/16"
           style={{
             top: 0,
             width: THUMB_SIZE,
             height: THUMB_SIZE,
-            left: checked ? TRACK_WIDTH - THUMB_SIZE : 0,
+            left: thumbLeft,
             borderRadius: THUMB_SIZE / 2,
             backdropFilter: `url(#${filterId})`,
-            transform: `scale(${disabled ? 0.76 : active ? 0.94 : 0.8})`,
-            backgroundColor: checked
-              ? "rgba(255,255,255,0.3)"
-              : "rgba(255,255,255,0.18)",
-            boxShadow: active
-              ? "0 14px 28px rgba(15,23,42,0.18)"
-              : "0 8px 22px rgba(15,23,42,0.14)",
+            transform: `scale(${thumbScale})`,
+            backgroundColor: thumbBackground,
+            boxShadow: thumbShadow,
+            willChange: "left, transform, background-color, box-shadow",
           }}
         />
       </div>

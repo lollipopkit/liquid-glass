@@ -33,6 +33,18 @@ bun run typecheck
 bun run build
 ```
 
+```bash
+npm run demo:dev
+npm run demo:build
+npm run demo:preview
+```
+
+## Demo App
+
+迁移后的 Svelte 预览位于 `apps/liquid-glass-demo`，并通过本地 Vite alias
+直接渲染 `@lollipopkit/liquid-glass-svelte` 与
+`@lollipopkit/liquid-glass-vite` 的 workspace 源码。
+
 ## Vite 前置要求
 
 当前 UI 包要求消费端使用 Vite，并先在应用里注册 `@lollipopkit/liquid-glass-vite` 提供的插件。

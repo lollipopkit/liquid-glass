@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { onDestroy, onMount } from "svelte";
   import heroAssets from "virtual:liquidGlassFilterAssets?width=180&height=180&radius=90&bezelWidth=34&glassThickness=120&refractiveIndex=1.5&bezelType=convex_squircle";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
-  import { createFilterId, toCssSize } from "../shared";
+  import { createAnimatedNumber, createFilterId, toCssSize } from "../shared";
 
   export let imageSrc: string;
   export let alt: string;
@@ -15,22 +16,45 @@
   const filterId = createFilterId("liquid-parallax-hero");
 
   let containerEl: HTMLDivElement;
-  let progress = 0.5;
+  let measureFrame = 0;
+  const progress = createAnimatedNumber(0.5, {
+    stiffness: 0.12,
+    damping: 0.82,
+  });
 
   function updateProgress() {
     const rect = containerEl?.getBoundingClientRect();
     const viewportHeight = window.innerHeight || 1;
     const value = ((viewportHeight - (rect?.top ?? 0)) / (viewportHeight + (rect?.height ?? 1)));
-    progress = Math.max(0, Math.min(1, value));
+    progress.setTarget(Math.max(0, Math.min(1, value)));
   }
 
+  function scheduleUpdate() {
+    if (measureFrame || typeof window === "undefined") return;
+    measureFrame = window.requestAnimationFrame(() => {
+      measureFrame = 0;
+      updateProgress();
+    });
+  }
+
+  onMount(() => {
+    scheduleUpdate();
+  });
+
+  onDestroy(() => {
+    if (measureFrame && typeof window !== "undefined") {
+      window.cancelAnimationFrame(measureFrame);
+    }
+    progress.destroy();
+  });
+
   $: backgroundTravel = 180 * parallaxSpeed;
-  $: backgroundY = (progress - 0.5) * 2 * backgroundTravel;
-  $: focalY = (progress - 0.5) * 2 * backgroundTravel * 0.72;
+  $: backgroundY = ($progress - 0.5) * 2 * backgroundTravel;
+  $: focalY = ($progress - 0.5) * 2 * backgroundTravel * 0.72;
   $: lensImageSize = lensSize * 1.34;
 </script>
 
-<svelte:window on:scroll={updateProgress} on:resize={updateProgress} />
+<svelte:window on:scroll={scheduleUpdate} on:resize={scheduleUpdate} />
 
 <div
   bind:this={containerEl}
@@ -40,8 +64,8 @@
   <img
     src={imageSrc}
     {alt}
-    class="absolute inset-0 h-[118%] w-full object-cover transition-transform duration-150"
-    style={`transform:translateY(${backgroundY}px)`}
+    class="absolute inset-0 h-[118%] w-full object-cover"
+    style={`transform:translateY(${backgroundY}px);will-change:transform`}
   />
   <div class="absolute inset-0 bg-[radial-gradient(120%_100%_at_50%_0%,rgba(255,255,255,0.15),transparent_48%),linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.4))]"></div>
   <div class="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/10 to-transparent"></div>

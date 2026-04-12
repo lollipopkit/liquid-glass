@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
   cn,
+  mix,
+  useAnimatedNumber,
   useControllableValue,
   useElementSize,
   useFilterId,
@@ -41,20 +43,48 @@ export const LiquidSearchbox: React.FC<LiquidSearchboxProps> = ({
     defaultValue,
     onValueChange
   );
-  const active = !disabled && (focused || pressed);
+  const focusAmount = useAnimatedNumber(0, {
+    stiffness: 0.14,
+    damping: 0.76,
+  });
+  const pressAmount = useAnimatedNumber(0, {
+    stiffness: 0.22,
+    damping: 0.72,
+  });
+
+  useEffect(() => {
+    focusAmount.setTarget(focused ? 1 : 0);
+  }, [focused]);
+
+  useEffect(() => {
+    pressAmount.setTarget(pressed ? 1 : 0);
+  }, [pressed]);
+
+  const backgroundOpacity = Math.max(
+    mix(0.05, 0.3, pressAmount.value),
+    mix(0.05, 0.2, focusAmount.value)
+  );
+  const scale =
+    mix(0.985, 1, focusAmount.value) * mix(1, 0.992, pressAmount.value);
+  const blur = mix(0.8, 0.35, focusAmount.value);
+  const scaleRatio = mix(0.72, 0.92, focusAmount.value);
+  const specularOpacity = mix(0.18, 0.24, focusAmount.value);
+  const specularSaturation = mix(4, 6, focusAmount.value);
+  const boxShadow = `0 12px 28px rgba(15,23,42,${mix(0.12, 0.16, focusAmount.value)})`;
 
   return (
     <label
       ref={ref}
       className={cn(
-        "relative flex h-14 w-full min-w-0 items-center overflow-hidden rounded-full border px-4 text-black transition-transform duration-200",
+        "relative flex h-14 w-full min-w-0 items-center overflow-hidden rounded-full border px-4 text-black",
         "border-black/10 bg-white/10 shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
         "dark:border-white/10 dark:bg-white/8 dark:text-white",
         disabled ? "cursor-not-allowed opacity-70" : "cursor-text",
         className
       )}
       style={{
-        transform: `scale(${disabled ? 1 : pressed ? 0.992 : focused ? 1 : 0.985})`,
+        transform: `scale(${disabled ? 1 : scale})`,
+        willChange: "transform",
       }}
       onPointerDown={() => {
         if (!disabled) {
@@ -70,25 +100,24 @@ export const LiquidSearchbox: React.FC<LiquidSearchboxProps> = ({
         assets={searchboxAssets}
         width={Math.max(Math.round(size.width), 280)}
         height={56}
-        blur={focused ? 0.35 : 0.8}
-        scaleRatio={focused ? 0.92 : 0.72}
-        specularOpacity={focused ? 0.24 : 0.18}
-        specularSaturation={focused ? 6 : 4}
+        blur={blur}
+        scaleRatio={scaleRatio}
+        specularOpacity={specularOpacity}
+        specularSaturation={specularSaturation}
       />
 
       <span
-        className="absolute inset-0 transition-[background-color,box-shadow] duration-200"
+        className="absolute inset-0"
         style={{
           borderRadius: 9999,
           backdropFilter: `url(#${filterId})`,
           backgroundColor: disabled
             ? "rgba(255,255,255,0.12)"
-            : active
-              ? "rgba(255,255,255,0.24)"
-              : "rgba(255,255,255,0.14)",
+            : `rgba(255,255,255,${backgroundOpacity})`,
           boxShadow: focused
-            ? "0 0 0 1px rgba(56,189,248,0.24), 0 18px 40px rgba(15,23,42,0.16)"
-            : "0 12px 28px rgba(15,23,42,0.12)",
+            ? `0 0 0 1px rgba(56,189,248,0.24), ${boxShadow}`
+            : boxShadow,
+          willChange: "background-color, box-shadow",
         }}
       />
 
