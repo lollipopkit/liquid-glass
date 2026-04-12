@@ -17,68 +17,59 @@
   let searchValue = "";
   let sliderValue = 10;
   let switchChecked = true;
+
+  const panelClass =
+    "demo-panel relative flex h-96 items-center justify-center overflow-hidden rounded-xl border";
+  const paddedPanelClass = `${panelClass} px-6 sm:px-8`;
 </script>
 
 <main class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-10 sm:px-6 lg:px-8">
   <section class="space-y-3">
-    <div class="text-[11px] uppercase tracking-[0.28em] text-slate-500">
-      Liquid Glass
-    </div>
-    <h1 class="max-w-3xl text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
-      Refractive UI studies rebuilt from the original article
+    <div class="page-kicker text-[11px] uppercase tracking-[0.28em]">Liquid Glass</div>
+    <h1 class="page-title max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
+      Refractive UI studies rebuilt
     </h1>
-    <p class="max-w-2xl text-[15px] leading-7 text-slate-600">
-      The demo surface now follows the original proportions, motion targets and
-      composition more closely: rounded refraction controls, oversized switch
-      geometry, draggable magnifier, and the centered parallax lens.
-    </p>
+    <h2>
+      <a style="color: #8b2252" href="https://kube.io/blog/liquid-glass-css-svg/">Original post</a>
+    </h2>
   </section>
 
   <section class="space-y-4">
-    <div class="text-sm font-semibold text-slate-900">Searchbox</div>
-    <div
-      class="relative flex h-96 items-center justify-center overflow-hidden rounded-xl border border-white/10 px-6 text-white/6 sm:px-8 [--bg1:#1b1b22] [--bg2:#0f0f14]"
-      style="background-image:linear-gradient(to right, currentColor 1px, transparent 1px),linear-gradient(to bottom, currentColor 1px, transparent 1px),radial-gradient(120% 100% at 10% 0%, var(--bg1), var(--bg2));background-size:24px 24px,24px 24px,100% 100%;background-position:12px 12px,12px 12px,0 0"
-    >
+    <div class="section-title text-sm font-semibold">Searchbox</div>
+    <div class={paddedPanelClass}>
       <LiquidSearchbox bind:value={searchValue} placeholder="Search" />
     </div>
   </section>
 
   <section class="space-y-4">
-    <div class="text-sm font-semibold text-slate-900">Slider</div>
-    <div
-      class="relative flex h-96 items-center justify-center overflow-hidden rounded-xl border border-white/10 text-white/6 [--bg1:#1b1b22] [--bg2:#0f0f14]"
-      style="background-image:linear-gradient(to right, currentColor 1px, transparent 1px),linear-gradient(to bottom, currentColor 1px, transparent 1px),radial-gradient(120% 100% at 10% 0%, var(--bg1), var(--bg2));background-size:24px 24px,24px 24px,100% 100%;background-position:12px 12px,12px 12px,0 0"
-    >
+    <div class="section-title text-sm font-semibold">Slider</div>
+    <div class={panelClass}>
       <LiquidSlider bind:value={sliderValue} />
     </div>
   </section>
 
   <section class="space-y-4">
-    <div class="text-sm font-semibold text-slate-900">Switch</div>
-    <div
-      class="relative flex h-96 items-center justify-center overflow-hidden rounded-xl border border-white/10 text-white/6 [--bg1:#1b1b22] [--bg2:#0f0f14]"
-      style="background-image:linear-gradient(to right, currentColor 1px, transparent 1px),linear-gradient(to bottom, currentColor 1px, transparent 1px),radial-gradient(120% 100% at 10% 0%, var(--bg1), var(--bg2));background-size:24px 24px,24px 24px,100% 100%;background-position:12px 12px,12px 12px,0 0"
-    >
+    <div class="section-title text-sm font-semibold">Switch</div>
+    <div class={panelClass}>
       <LiquidSwitch bind:checked={switchChecked} />
     </div>
   </section>
 
   <section class="space-y-4">
-    <div class="text-sm font-semibold text-slate-900">Magnifying Glass</div>
-    <LiquidMagnifyingGlass className="min-h-[420px] sm:min-h-[420px] border-white/10 bg-black shadow-[0_18px_50px_rgba(0,0,0,0.32)]">
+    <div class="section-title text-sm font-semibold">Magnifying Glass</div>
+    <LiquidMagnifyingGlass className="min-h-[420px] border-black/10 bg-white/45 shadow-[0_18px_50px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-black/60 dark:shadow-[0_18px_50px_rgba(0,0,0,0.32)] sm:min-h-[420px]">
       <div class="absolute inset-0 grid grid-cols-1 gap-6 p-6 sm:grid-cols-[1fr_46%] sm:gap-10 sm:p-10">
         <div class="flex flex-col justify-center">
-          <div class="flex items-center gap-3 text-red-600">
+          <div class="magnifier-accent flex items-center gap-3">
             <span class="h-[2px] w-10 bg-current"></span>
             <span class="text-[11px] font-medium uppercase tracking-[0.25em]">
               Optics Study
             </span>
           </div>
-          <h3 class="mt-4 text-[36px] font-extrabold leading-[0.95] tracking-tight text-white sm:text-[54px]">
-            Liquid Glass<span class="text-white/40">-</span>Precision Lens
+          <h3 class="magnifier-title mt-4 text-[36px] font-extrabold leading-[0.95] tracking-tight sm:text-[54px]">
+            Liquid Glass<span class="magnifier-separator">-</span>Precision Lens
           </h3>
-          <div class="mt-4 max-w-[60ch] space-y-3 text-[15px] leading-[1.55] text-white/70 sm:text-[16px]">
+          <div class="magnifier-copy mt-4 max-w-[60ch] space-y-3 text-[15px] leading-[1.55] sm:text-[16px]">
             <p>
               Drag the capsule to bend the page. This lens is a compact SVG
               displacement rig that refracts whatever sits beneath it.
@@ -88,12 +79,12 @@
               along its gradient, then topped with a subtle specular bloom for
               depth.
             </p>
-            <p class="text-white/60">
+            <p class="magnifier-muted">
               Sweep across strong edges. High contrast makes the bend snap.
             </p>
           </div>
         </div>
-        <div class="relative hidden overflow-hidden rounded-lg ring-1 ring-white/10 sm:block">
+        <div class="magnifier-media relative hidden overflow-hidden rounded-lg ring-1 sm:block">
           <img
             src={magnifierImage}
             alt="Abstract architectural lines"
@@ -106,14 +97,65 @@
   </section>
 
   <section class="space-y-4">
-    <div class="text-sm font-semibold text-slate-900">Parallax Image Hero</div>
+    <div class="section-title text-sm font-semibold">Parallax Image Hero</div>
     <LiquidParallaxHero
       imageSrc={heroImage}
       focalImageSrc={heroFocus}
       alt="Abstract folded surface"
     />
-    <div class="text-right text-[10px] uppercase tracking-[0.2em] text-slate-500">
+    <div class="caption text-right text-[10px] uppercase tracking-[0.2em]">
       Photo by Martin Martz on Unsplash
     </div>
   </section>
 </main>
+
+<style>
+  .page-kicker {
+    color: var(--demo-kicker);
+  }
+
+  .page-title,
+  .section-title {
+    color: var(--demo-ink);
+  }
+
+  .page-copy,
+  .caption {
+    color: var(--demo-muted);
+  }
+
+  .demo-panel {
+    border-color: var(--demo-panel-border);
+    color: var(--demo-panel-grid);
+    background-image:
+      linear-gradient(to right, currentColor 1px, transparent 1px),
+      linear-gradient(to bottom, currentColor 1px, transparent 1px),
+      radial-gradient(120% 100% at 10% 0%, var(--demo-panel-bg1), var(--demo-panel-bg2));
+    background-position: 12px 12px, 12px 12px, 0 0;
+    background-size: 24px 24px, 24px 24px, 100% 100%;
+  }
+
+  .magnifier-accent {
+    color: var(--demo-accent);
+  }
+
+  .magnifier-title {
+    color: var(--demo-magnifier-ink);
+  }
+
+  .magnifier-separator {
+    color: color-mix(in srgb, var(--demo-magnifier-ink) 38%, transparent);
+  }
+
+  .magnifier-copy {
+    color: var(--demo-magnifier-soft);
+  }
+
+  .magnifier-muted {
+    color: var(--demo-magnifier-muted);
+  }
+
+  .magnifier-media {
+    --tw-ring-color: color-mix(in srgb, var(--demo-magnifier-ink) 12%, transparent);
+  }
+</style>

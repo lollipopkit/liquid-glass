@@ -1,10 +1,44 @@
 @import "tailwindcss";
-@source "./**/*.{ts,tsx}";
-@source "../../../packages/react/src/**/*.{ts,tsx}";
+@source "./**/*.{ts,svelte}";
+@source "../../../packages/svelte/src/**/*.{ts,svelte}";
 
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
+  --demo-bg: #edf3fb;
+  --demo-bg-accent-1: rgba(111, 151, 221, 0.2);
+  --demo-bg-accent-2: rgba(255, 255, 255, 0.92);
   --demo-ink: #0f172a;
+  --demo-muted: #526174;
+  --demo-kicker: #6a7789;
+  --demo-panel-border: rgba(15, 23, 42, 0.08);
+  --demo-panel-grid: rgba(15, 23, 42, 0.08);
+  --demo-panel-bg1: #f7fbff;
+  --demo-panel-bg2: #dfe9f7;
+  --demo-caption: #6b7280;
+  --demo-accent: #c2410c;
+  --demo-magnifier-ink: #132033;
+  --demo-magnifier-soft: rgba(19, 32, 51, 0.74);
+  --demo-magnifier-muted: rgba(19, 32, 51, 0.56);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --demo-bg: #050913;
+    --demo-bg-accent-1: rgba(58, 130, 246, 0.18);
+    --demo-bg-accent-2: rgba(10, 15, 27, 0.9);
+    --demo-ink: #edf3ff;
+    --demo-muted: #a0aec0;
+    --demo-kicker: #95a2b7;
+    --demo-panel-border: rgba(255, 255, 255, 0.1);
+    --demo-panel-grid: rgba(255, 255, 255, 0.07);
+    --demo-panel-bg1: #182133;
+    --demo-panel-bg2: #090d17;
+    --demo-caption: #94a3b8;
+    --demo-accent: #f97316;
+    --demo-magnifier-ink: #f8fbff;
+    --demo-magnifier-soft: rgba(248, 251, 255, 0.78);
+    --demo-magnifier-muted: rgba(248, 251, 255, 0.58);
+  }
 }
 
 * {
@@ -18,7 +52,10 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: #ffffff;
+  background-color: var(--demo-bg);
+  background-image:
+    radial-gradient(circle at top left, var(--demo-bg-accent-1), transparent 28%),
+    linear-gradient(180deg, var(--demo-bg-accent-2), transparent 38%);
   color: var(--demo-ink);
   font-family: "Inter", "SF Pro Display", "Segoe UI", sans-serif;
 }
