@@ -1,6 +1,6 @@
 {
   "name": "@lollipopkit/liquid-glass-react",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "React liquid glass components for Vite projects.",
   "license": "MIT",
   "type": "module",
@@ -46,11 +46,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@lollipopkit/liquid-glass": "0.1.1",
+    "@lollipopkit/liquid-glass": "0.1.2",
     "tailwind-merge": "^2.6.0"
   },
   "peerDependencies": {
-    "@lollipopkit/liquid-glass-vite": "0.1.1",
+    "@lollipopkit/liquid-glass-vite": "0.1.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   }

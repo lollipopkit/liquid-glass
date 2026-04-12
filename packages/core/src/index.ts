@@ -5,6 +5,12 @@ export {
 export type { RgbaImageData } from "./lib/imageData";
 export { calculateMagnifyingDisplacementMap } from "./lib/magnifyingDisplacement";
 export { calculateRefractionSpecular } from "./lib/specular";
+export type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassRuntimeAssets,
+  LiquidGlassRuntimeBackend,
+} from "./runtime/assets";
+export { createLiquidGlassRuntimeAssets } from "./runtime/assets";
 export type { SurfaceFnDef } from "./lib/surfaceEquations";
 export {
   CONCAVE,

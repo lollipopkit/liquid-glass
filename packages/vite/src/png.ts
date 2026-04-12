@@ -5,6 +5,10 @@ import type { RgbaImageData } from "@lollipopkit/liquid-glass";
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
+const IHDR_TYPE = Buffer.from("IHDR", "ascii");
+const IDAT_TYPE = Buffer.from("IDAT", "ascii");
+const IEND_TYPE = Buffer.from("IEND", "ascii");
+const EMPTY_BUFFER = Buffer.alloc(0);
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -30,12 +34,11 @@ function crc32(buffer: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function createChunk(type: string, data: Uint8Array): Buffer {
-  const typeBuffer = Buffer.from(type, "ascii");
-  const chunk = Buffer.alloc(12 + data.length);
+function createChunk(type: Buffer, data: Uint8Array): Buffer {
+  const chunk = Buffer.allocUnsafe(12 + data.length);
 
   chunk.writeUInt32BE(data.length, 0);
-  typeBuffer.copy(chunk, 4);
+  type.copy(chunk, 4);
   chunk.set(data, 8);
   chunk.writeUInt32BE(crc32(chunk.subarray(4, 8 + data.length)), 8 + data.length);
 
@@ -44,7 +47,7 @@ function createChunk(type: string, data: Uint8Array): Buffer {
 
 export function encodePng({ data, width, height }: RgbaImageData): Buffer {
   const stride = width * 4;
-  const raw = Buffer.alloc((stride + 1) * height);
+  const raw = Buffer.allocUnsafe((stride + 1) * height);
 
   for (let row = 0; row < height; row++) {
     const rowOffset = row * (stride + 1);
@@ -53,7 +56,7 @@ export function encodePng({ data, width, height }: RgbaImageData): Buffer {
     raw.set(data.subarray(sourceOffset, sourceOffset + stride), rowOffset + 1);
   }
 
-  const ihdr = Buffer.alloc(13);
+  const ihdr = Buffer.allocUnsafe(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
@@ -66,8 +69,8 @@ export function encodePng({ data, width, height }: RgbaImageData): Buffer {
 
   return Buffer.concat([
     PNG_SIGNATURE,
-    createChunk("IHDR", ihdr),
-    createChunk("IDAT", idat),
-    createChunk("IEND", Buffer.alloc(0)),
+    createChunk(IHDR_TYPE, ihdr),
+    createChunk(IDAT_TYPE, idat),
+    createChunk(IEND_TYPE, EMPTY_BUFFER),
   ]);
 }

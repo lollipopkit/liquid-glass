@@ -1,6 +1,6 @@
 {
   "name": "@lollipopkit/liquid-glass",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Core liquid glass algorithms, shared filter params, and framework-agnostic types.",
   "license": "MIT",
   "type": "module",

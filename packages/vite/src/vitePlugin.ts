@@ -75,6 +75,19 @@ export function liquidGlassPlugin(): Plugin {
     hashToParams.set(getLiquidGlassHash(params), params);
   }
 
+  function getMaxDisplacement(values: number[]): number {
+    let maxDisplacement = 0;
+
+    for (const value of values) {
+      const absolute = Math.abs(value);
+      if (absolute > maxDisplacement) {
+        maxDisplacement = absolute;
+      }
+    }
+
+    return maxDisplacement;
+  }
+
   function getDisplacementEntry(
     input: LiquidGlassFilterParamInput = {}
   ): DisplacementCacheEntry {
@@ -94,7 +107,7 @@ export function liquidGlassPlugin(): Plugin {
       surfacePreset.fn,
       params.refractiveIndex
     );
-    const maxDisplacement = Math.max(...precomputedMap.map((value) => Math.abs(value)));
+    const maxDisplacement = getMaxDisplacement(precomputedMap);
     const imageData = calculateDisplacementMap2(
       params.width,
       params.height,

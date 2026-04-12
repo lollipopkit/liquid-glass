@@ -8,6 +8,7 @@
     "apps/*"
   ],
   "scripts": {
+    "bench": "node --experimental-strip-types ./scripts/bench.ts",
     "build": "node ./scripts/run-workspaces.mjs build",
     "changeset": "changeset",
     "demo:build": "node ./scripts/run-workspaces.mjs build && node ./scripts/run-demo.mjs build",
