@@ -2,7 +2,7 @@
 
 # liquid-glass
 
-Reference: [kube blog article](https://kube.io/blog/liquid-glass-css-svg)
+[Demo](https://liquid-glass.lollipopkit.com) | [Reference: kube blog](https://kube.io/blog/liquid-glass-css-svg)
 
 Monorepo for `liquid glass / refraction` effects across React, Vue, and Svelte.
 

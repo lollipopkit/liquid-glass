@@ -2,7 +2,7 @@
 
 # liquid-glass
 
-参考 [kube 博客文章](https://kube.io/blog/liquid-glass-css-svg)
+[演示](https://liquid-glass.lollipopkit.com) | [参考kube博客](https://kube.io/blog/liquid-glass-css-svg)
 
 用于在 React、Vue、Svelte 中构建 `liquid glass / refraction` 效果的 monorepo。
 
