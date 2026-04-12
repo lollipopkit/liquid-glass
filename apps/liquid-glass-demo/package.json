@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node ../../scripts/run-workspaces.mjs build && vite build",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@lollipopkit/liquid-glass": "workspace:*",
-    "@lollipopkit/liquid-glass-svelte": "workspace:*",
-    "@lollipopkit/liquid-glass-vite": "workspace:*",
+    "@lollipopkit/liquid-glass": "*",
+    "@lollipopkit/liquid-glass-svelte": "*",
+    "@lollipopkit/liquid-glass-vite": "*",
     "svelte": "^5.34.9"
   },
   "devDependencies": {

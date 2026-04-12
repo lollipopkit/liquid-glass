@@ -1,8 +1,9 @@
 import { spawnSync } from "node:child_process";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const script = process.argv[2];
-const rootDir = process.cwd();
+const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageDirs = [
   "packages/core",
   "packages/vite",
