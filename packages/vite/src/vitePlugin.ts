@@ -170,7 +170,11 @@ export function liquidGlassPlugin(): Plugin {
       return existing;
     }
 
-    const imageData = calculateMagnifyingDisplacementMap(params.width, params.height);
+    const imageData = calculateMagnifyingDisplacementMap(
+      params.width,
+      params.height,
+      2
+    );
     const entry = {
       buffer: encodePng(imageData),
       params,

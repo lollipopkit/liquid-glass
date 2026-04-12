@@ -254,7 +254,7 @@ function buildSuite(
     dpr
   );
   const magnifyingImageData = params.magnify
-    ? core.calculateMagnifyingDisplacementMap(params.width, params.height)
+    ? core.calculateMagnifyingDisplacementMap(params.width, params.height, dpr)
     : undefined;
 
   const stages: BenchStageResult[] = [
@@ -351,7 +351,8 @@ function buildSuite(
         if (params.magnify) {
           const magnifying = core.calculateMagnifyingDisplacementMap(
             params.width,
-            params.height
+            params.height,
+            dpr
           );
           const magnifyingPng = encodePng(magnifying);
           marker += magnifyingPng[0];
@@ -381,7 +382,6 @@ function renderTable(results: BenchSuiteResult[]): string {
   lines.push("说明：");
   lines.push("- `png encode` 只测位图到 PNG Buffer 的编码成本。");
   lines.push("- `full static pipeline` 模拟当前静态资源链路：计算位移图/高光图并编码为 PNG。");
-  lines.push("- `magnifying` 当前实现未显式传入 DPR；在 Node benchmark 中按当前逻辑会退回到 1。");
   lines.push("");
 
   for (const suite of results) {

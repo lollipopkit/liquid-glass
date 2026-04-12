@@ -2,7 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "paths": {},
+    "paths": {
+      "@lollipopkit/liquid-glass": [
+        "../core/src/index.ts"
+      ],
+      "@lollipopkit/liquid-glass/*": [
+        "../core/src/*"
+      ]
+    },
     "noEmit": false,
     "declaration": true,
     "emitDeclarationOnly": true,
