@@ -3,7 +3,7 @@
   import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&radius=46&bezelWidth=19&glassThickness=47&refractiveIndex=1.5&bezelType=lip";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
-  import { createAnimatedNumber, createFilterId, mix } from "../shared";
+  import { clamp, createAnimatedNumber, createFilterId, mix } from "../shared";
 
   export let checked = false;
   export let disabled = false;
@@ -24,7 +24,16 @@
   const TRAVEL =
     TRACK_WIDTH - TRACK_HEIGHT - (THUMB_WIDTH - THUMB_HEIGHT) * REST_SCALE;
 
+  let inputEl: HTMLInputElement | null = null;
   let pressed = false;
+  let suppressClick = false;
+  const dragState = {
+    dragRatio: 0,
+    moved: false,
+    pointerId: -1,
+    startChecked: false,
+    startX: 0,
+  };
   $: active = !disabled && pressed;
   const activeAmount = createAnimatedNumber(0, {
     stiffness: 0.18,
@@ -35,7 +44,9 @@
     damping: 0.74,
   });
   $: activeAmount.setTarget(active ? 1 : 0);
-  $: checkedAmount.setTarget(checked ? 1 : 0);
+  $: if (!pressed) {
+    checkedAmount.setTarget(checked ? 1 : 0);
+  }
   $: blur = 0.2;
   $: scaleRatio = 0.4 + 0.5 * $activeAmount;
   $: specularOpacity = 0.5;
@@ -60,12 +71,69 @@
     activeAmount.destroy();
     checkedAmount.destroy();
   });
+
+  function resetDrag(pointerId?: number) {
+    if (pointerId !== undefined) {
+      inputEl?.releasePointerCapture?.(pointerId);
+    }
+
+    dragState.pointerId = -1;
+    dragState.dragRatio = 0;
+    dragState.moved = false;
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    if (dragState.pointerId !== event.pointerId) return;
+
+    const baseRatio = dragState.startChecked ? 1 : 0;
+    const displacement = event.clientX - dragState.startX;
+    const ratio = baseRatio + displacement / TRAVEL;
+    const overflow = ratio < 0 ? -ratio : ratio > 1 ? ratio - 1 : 0;
+    const overflowSign = ratio < 0 ? -1 : 1;
+    const displayRatio = clamp(ratio, 0, 1) + (overflowSign * overflow) / 22;
+
+    dragState.dragRatio = displayRatio;
+    dragState.moved = Math.abs(displacement) > 4;
+    checkedAmount.jump(displayRatio);
+  }
+
+  function handlePointerUp(event: PointerEvent) {
+    if (dragState.pointerId !== event.pointerId) return;
+
+    const shouldCommit = dragState.moved;
+    const nextChecked = clamp(dragState.dragRatio, 0, 1) > 0.5;
+
+    resetDrag(event.pointerId);
+    pressed = false;
+
+    if (shouldCommit) {
+      suppressClick = true;
+      checked = nextChecked;
+      dispatch("checkedChange", checked);
+      return;
+    }
+
+    checkedAmount.setTarget(checked ? 1 : 0);
+  }
+
+  function handlePointerCancel(event: PointerEvent) {
+    if (dragState.pointerId !== event.pointerId) return;
+
+    resetDrag(event.pointerId);
+    pressed = false;
+    checkedAmount.setTarget(checked ? 1 : 0);
+  }
 </script>
 
-<svelte:window on:pointerup={() => (pressed = false)} />
+<svelte:window
+  on:pointermove={handlePointerMove}
+  on:pointerup={handlePointerUp}
+  on:pointercancel={handlePointerCancel}
+/>
 
 <label class={`relative inline-flex h-[92px] w-[160px] shrink-0 select-none touch-none ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${className}`}>
   <input
+    bind:this={inputEl}
     type="checkbox"
     {disabled}
     bind:checked
@@ -74,14 +142,31 @@
       dispatch("change", event);
       dispatch("checkedChange", checked);
     }}
-    on:pointerdown={() => {
-      if (!disabled) pressed = true;
+    on:pointerdown={(event) => {
+      if (!disabled) {
+        dragState.pointerId = event.pointerId;
+        dragState.startX = event.clientX;
+        dragState.startChecked = checked;
+        dragState.dragRatio = checked ? 1 : 0;
+        dragState.moved = false;
+        pressed = true;
+        inputEl?.setPointerCapture?.(event.pointerId);
+      }
+    }}
+    on:click={(event) => {
+      if (!suppressClick) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClick = false;
     }}
     on:focus={(event) => {
       dispatch("focus", event);
     }}
     on:blur={(event) => {
+      resetDrag();
       pressed = false;
+      checkedAmount.setTarget(checked ? 1 : 0);
       dispatch("blur", event);
     }}
   />

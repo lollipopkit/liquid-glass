@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&radius=46&bezelWidth=19&glassThickness=47&refractiveIndex=1.5&bezelType=lip";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
+  clamp,
   cn,
   mix,
   useAnimatedNumber,
@@ -42,6 +43,15 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
   ...inputProps
 }) => {
   const filterId = useFilterId("liquid-switch");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const suppressClickRef = useRef(false);
+  const dragStateRef = useRef({
+    dragRatio: 0,
+    moved: false,
+    pointerId: -1,
+    startChecked: false,
+    startX: 0,
+  });
   const [pressed, setPressed] = useState(false);
   const [checked, setChecked] = useControllableValue(
     controlledChecked,
@@ -63,23 +73,82 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
   }, [active]);
 
   useEffect(() => {
-    checkedAmount.setTarget(checked ? 1 : 0);
-  }, [checked]);
-
-  useEffect(() => {
-    if (!pressed) {
+    if (pressed) {
       return;
     }
 
-    const onPointerUp = () => setPressed(false);
-    const onPointerCancel = () => setPressed(false);
+    checkedAmount.setTarget(checked ? 1 : 0);
+  }, [checked, pressed]);
+
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      const dragState = dragStateRef.current;
+
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const baseRatio = dragState.startChecked ? 1 : 0;
+      const displacement = event.clientX - dragState.startX;
+      const ratio = baseRatio + displacement / TRAVEL;
+      const overflow = ratio < 0 ? -ratio : ratio > 1 ? ratio - 1 : 0;
+      const overflowSign = ratio < 0 ? -1 : 1;
+      const displayRatio = clamp(ratio, 0, 1) + (overflowSign * overflow) / 22;
+
+      dragState.dragRatio = displayRatio;
+      dragState.moved = Math.abs(displacement) > 4;
+      checkedAmount.jump(displayRatio);
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      const dragState = dragStateRef.current;
+
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const shouldCommit = dragState.moved;
+      const nextChecked = clamp(dragState.dragRatio, 0, 1) > 0.5;
+
+      dragState.pointerId = -1;
+      dragState.dragRatio = 0;
+      dragState.moved = false;
+      inputRef.current?.releasePointerCapture?.(event.pointerId);
+      setPressed(false);
+
+      if (shouldCommit) {
+        suppressClickRef.current = true;
+        setChecked(nextChecked);
+        return;
+      }
+
+      checkedAmount.setTarget(checked ? 1 : 0);
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
+      const dragState = dragStateRef.current;
+
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      dragState.pointerId = -1;
+      dragState.dragRatio = 0;
+      dragState.moved = false;
+      inputRef.current?.releasePointerCapture?.(event.pointerId);
+      setPressed(false);
+      checkedAmount.setTarget(checked ? 1 : 0);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointercancel", onPointerCancel);
     return () => {
+      window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerCancel);
     };
-  }, [pressed]);
+  }, [checked, checkedAmount, setChecked]);
 
   const trackBackground = `rgba(${mix(148, 59, checkedAmount.value)},${mix(148, 191, checkedAmount.value)},${mix(159, 78, checkedAmount.value)},${mix(0.47, 0.93, checkedAmount.value)})`;
   const blur = 0.2;
@@ -107,6 +176,7 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
     >
       <input
         {...inputProps}
+        ref={inputRef}
         type="checkbox"
         disabled={disabled}
         checked={checked}
@@ -117,15 +187,37 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
         }}
         onPointerDown={(event) => {
           if (!disabled) {
+            dragStateRef.current = {
+              dragRatio: checked ? 1 : 0,
+              moved: false,
+              pointerId: event.pointerId,
+              startChecked: checked,
+              startX: event.clientX,
+            };
             setPressed(true);
+            event.currentTarget.setPointerCapture?.(event.pointerId);
           }
           inputProps.onPointerDown?.(event);
+        }}
+        onClick={(event) => {
+          if (suppressClickRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressClickRef.current = false;
+            return;
+          }
+
+          inputProps.onClick?.(event);
         }}
         onFocus={(event) => {
           inputProps.onFocus?.(event);
         }}
         onBlur={(event) => {
+          dragStateRef.current.pointerId = -1;
+          dragStateRef.current.dragRatio = 0;
+          dragStateRef.current.moved = false;
           setPressed(false);
+          checkedAmount.setTarget(checked ? 1 : 0);
           inputProps.onBlur?.(event);
         }}
       />

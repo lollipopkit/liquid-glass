@@ -12,6 +12,7 @@ import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&ra
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
+  clamp,
   cn,
   mix,
   useAnimatedNumber,
@@ -49,7 +50,16 @@ export const LiquidSwitch = defineComponent({
   setup(props, { emit }) {
     const attrs = useAttrs();
     const filterId = useFilterId("liquid-switch");
+    const inputRef = ref<HTMLInputElement | null>(null);
     const pressed = ref(false);
+    const suppressClick = ref(false);
+    const dragState = {
+      dragRatio: 0,
+      moved: false,
+      pointerId: -1,
+      startChecked: false,
+      startX: 0,
+    };
     const value = useControllableBoolean(
       toRef(props, "modelValue"),
       props.defaultValue,
@@ -70,21 +80,80 @@ export const LiquidSwitch = defineComponent({
     });
 
     watchEffect(() => {
+      if (pressed.value) {
+        return;
+      }
+
       checkedAmount.setTarget(value.value ? 1 : 0);
     });
 
-    const onPointerUp = () => {
+    const onPointerMove = (event: PointerEvent) => {
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const baseRatio = dragState.startChecked ? 1 : 0;
+      const displacement = event.clientX - dragState.startX;
+      const ratio = baseRatio + displacement / TRAVEL;
+      const overflow = ratio < 0 ? -ratio : ratio > 1 ? ratio - 1 : 0;
+      const overflowSign = ratio < 0 ? -1 : 1;
+      const displayRatio = clamp(ratio, 0, 1) + (overflowSign * overflow) / 22;
+
+      dragState.dragRatio = displayRatio;
+      dragState.moved = Math.abs(displacement) > 4;
+      checkedAmount.jump(displayRatio);
+    };
+
+    const resetDrag = (pointerId?: number) => {
+      if (pointerId !== undefined) {
+        inputRef.value?.releasePointerCapture?.(pointerId);
+      }
+
+      dragState.pointerId = -1;
+      dragState.dragRatio = 0;
+      dragState.moved = false;
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const shouldCommit = dragState.moved;
+      const nextChecked = clamp(dragState.dragRatio, 0, 1) > 0.5;
+
+      resetDrag(event.pointerId);
       pressed.value = false;
+
+      if (shouldCommit) {
+        suppressClick.value = true;
+        value.value = nextChecked;
+        return;
+      }
+
+      checkedAmount.setTarget(value.value ? 1 : 0);
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      resetDrag(event.pointerId);
+      pressed.value = false;
+      checkedAmount.setTarget(value.value ? 1 : 0);
     };
 
     onMounted(() => {
+      window.addEventListener("pointermove", onPointerMove);
       window.addEventListener("pointerup", onPointerUp);
-      window.addEventListener("pointercancel", onPointerUp);
+      window.addEventListener("pointercancel", onPointerCancel);
     });
 
     onUnmounted(() => {
+      window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
     });
 
     return () => {
@@ -118,6 +187,7 @@ export const LiquidSwitch = defineComponent({
         [
           h("input", {
             ...attrs,
+            ref: inputRef,
             type: "checkbox",
             disabled: props.disabled,
             checked: value.value,
@@ -128,19 +198,33 @@ export const LiquidSwitch = defineComponent({
               value.value = target.checked;
               emit("change", event);
             },
-            onPointerdown: () => {
+            onPointerdown: (event: PointerEvent) => {
               if (!props.disabled) {
+                dragState.pointerId = event.pointerId;
+                dragState.startX = event.clientX;
+                dragState.startChecked = value.value;
+                dragState.dragRatio = value.value ? 1 : 0;
+                dragState.moved = false;
                 pressed.value = true;
+                inputRef.value?.setPointerCapture?.(event.pointerId);
               }
             },
-            onPointerup: () => {
-              pressed.value = false;
+            onClick: (event: MouseEvent) => {
+              if (!suppressClick.value) {
+                return;
+              }
+
+              event.preventDefault();
+              event.stopPropagation();
+              suppressClick.value = false;
             },
             onFocus: (event: FocusEvent) => {
               emit("focus", event);
             },
             onBlur: (event: FocusEvent) => {
+              resetDrag();
               pressed.value = false;
+              checkedAmount.setTarget(value.value ? 1 : 0);
               emit("blur", event);
             },
           }),
