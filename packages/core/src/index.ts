@@ -7,17 +7,25 @@ export { calculateMagnifyingDisplacementMap } from "./lib/magnifyingDisplacement
 export { calculateRefractionSpecular } from "./lib/specular";
 export type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassRuntimeAssets,
   LiquidGlassRuntimeBackend,
   LiquidGlassRuntimeBackendPreference,
+  LiquidGlassStaticAssetKey,
+  LiquidGlassStaticAssetRegistry,
 } from "./runtime/assets";
 export {
   createLiquidGlassRuntimeAssets,
   resolveLiquidGlassRuntimeBackend,
 } from "./runtime/assets";
-export type { LiquidGlassManagedRuntimeAssets } from "./runtime/worker";
+export type {
+  CreateLiquidGlassWorkerOptions,
+  LiquidGlassManagedRuntimeAssets,
+  LiquidGlassWorkerFactory,
+} from "./runtime/worker";
 export {
   canUseLiquidGlassWorkerRuntime,
+  configureLiquidGlassWorkerRuntime,
   createManagedLiquidGlassRuntimeAssets,
   prewarmLiquidGlassManagedRuntimeAssets,
   primeLiquidGlassWorkerRuntime,

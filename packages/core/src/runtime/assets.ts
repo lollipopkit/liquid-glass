@@ -17,6 +17,16 @@ export type LiquidGlassRuntimeBackend = "ts" | "worker";
 export type LiquidGlassRuntimeBackendPreference =
   | LiquidGlassRuntimeBackend
   | "auto";
+export type LiquidGlassAssetMode = "auto" | "static" | "runtime";
+export type LiquidGlassStaticAssetKey =
+  | "hero"
+  | "magnifier"
+  | "searchbox"
+  | "slider"
+  | "switch";
+export type LiquidGlassStaticAssetRegistry = Partial<
+  Record<LiquidGlassStaticAssetKey, LiquidGlassFilterAssets>
+>;
 
 export type CreateLiquidGlassRuntimeAssetsOptions = {
   backend?: LiquidGlassRuntimeBackendPreference;

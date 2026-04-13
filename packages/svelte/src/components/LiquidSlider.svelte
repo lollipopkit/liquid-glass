@@ -2,19 +2,22 @@
   import { createEventDispatcher, onDestroy } from "svelte";
   import type {
     CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassAssetMode,
     LiquidGlassFilterParamInput,
   } from "@lollipopkit/liquid-glass";
-  import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
   import {
     createLiquidGlassRuntimeStore,
+    resolveLiquidGlassComponentAssets,
+    resolveLiquidGlassComponentMode,
     type LiquidGlassRuntimeStore,
     type LiquidGlassRuntimeStoreState,
   } from "../runtime";
+  import { getLiquidGlassStaticAssets } from "../staticAssets";
   import { clamp, createAnimatedNumber, createFilterId, mix } from "../shared";
 
-  export type LiquidSliderRuntimeParams = Partial<
+  type LiquidSliderRuntimeParams = Partial<
     Pick<
       LiquidGlassFilterParamInput,
       "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
@@ -27,6 +30,7 @@
   export let step = 1;
   export let disabled = false;
   export let className = "";
+  export let mode: LiquidGlassAssetMode | undefined = undefined;
   export let runtime = false;
   export let runtimeParams: LiquidSliderRuntimeParams = {};
   export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
@@ -100,7 +104,9 @@
     ...SLIDER_RUNTIME_INPUT,
     ...runtimeParams,
   };
-  $: if (runtime) {
+  const staticAssets = getLiquidGlassStaticAssets("slider");
+  $: resolvedMode = resolveLiquidGlassComponentMode(mode, runtime, Boolean(staticAssets));
+  $: if (resolvedMode === "runtime") {
     if (!runtimeStore) {
       runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
       unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
@@ -112,7 +118,12 @@
   } else {
     disposeRuntimeStore();
   }
-  $: filterAssets = runtime && runtimeState.assets ? runtimeState.assets : sliderAssets;
+  $: filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 
   onDestroy(() => {
     activeAmount.destroy();

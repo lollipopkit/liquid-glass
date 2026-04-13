@@ -24,6 +24,7 @@ without going through the Vite `virtual:` modules.
 
 ```ts
 import {
+  configureLiquidGlassWorkerRuntime,
   createManagedLiquidGlassRuntimeAssets,
   createLiquidGlassRuntimeAssets,
   prewarmLiquidGlassManagedRuntimeAssets,
@@ -99,6 +100,19 @@ const managedAssets = await createManagedLiquidGlassRuntimeAssets(
 managedAssets.dispose();
 ```
 
+If your bundler needs a custom worker loader, configure it before the first
+managed runtime call:
+
+```ts
+configureLiquidGlassWorkerRuntime({
+  workerFactory: (options) =>
+    new Worker(new URL("./liquidGlassRuntime.worker.js", import.meta.url), {
+      name: options?.name,
+      type: "module",
+    }),
+});
+```
+
 ### Runtime Options
 
 ```ts
@@ -134,5 +148,7 @@ type CreateLiquidGlassRuntimeAssetsOptions = {
   - use this when React, Vue, or Svelte integrations all need the same worker-backed path
 - `prewarmLiquidGlassManagedRuntimeAssets()`
   - warms the shared worker render cache for a later create/update sequence
+- `configureLiquidGlassWorkerRuntime()`
+  - overrides the default worker factory when your host app needs custom bundler wiring
 
 See the root repository README for full usage and package relationships.

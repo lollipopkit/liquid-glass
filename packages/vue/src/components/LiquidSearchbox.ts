@@ -8,8 +8,11 @@ import {
   watchEffect,
   type PropType,
 } from "vue";
-import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
-import type { CreateLiquidGlassRuntimeAssetsOptions, LiquidGlassFilterParamInput } from "@lollipopkit/liquid-glass";
+import type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
+  LiquidGlassFilterParamInput,
+} from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -19,7 +22,12 @@ import {
   useControllableString,
   useFilterId,
 } from "../shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidSearchboxRuntimeParams = Partial<
   Pick<
@@ -63,6 +71,10 @@ export const LiquidSearchbox = defineComponent({
       type: String,
       default: "",
     },
+    mode: {
+      type: String as PropType<LiquidGlassAssetMode | undefined>,
+      default: undefined,
+    },
     runtime: {
       type: Boolean,
       default: false,
@@ -88,14 +100,19 @@ export const LiquidSearchbox = defineComponent({
       props.defaultValue,
       emit
     );
+    const staticAssets = getLiquidGlassStaticAssets("searchbox");
+    const resolvedMode = computed(() =>
+      resolveLiquidGlassComponentMode(props.mode, props.runtime, Boolean(staticAssets))
+    );
+    const mergedRuntimeInput = computed(() => ({
+      ...SEARCHBOX_RUNTIME_INPUT,
+      ...(props.runtimeParams ?? {}),
+    }));
     const runtimeState = useLiquidGlassRuntimeAssets(
-      computed(() => ({
-        ...SEARCHBOX_RUNTIME_INPUT,
-        ...(props.runtimeParams ?? {}),
-      })),
+      mergedRuntimeInput,
       computed(() => ({
         ...(props.runtimeOptions ?? {}),
-        enabled: props.runtime,
+        enabled: resolvedMode.value === "runtime",
       }))
     );
     const focusAmount = useAnimatedNumber(0, {
@@ -145,10 +162,12 @@ export const LiquidSearchbox = defineComponent({
       const specularOpacity = 0.2;
       const specularSaturation = 4;
       const boxShadow = "0 4px 16px rgba(0, 0, 0, 0.16)";
-      const filterAssets =
-        props.runtime && runtimeState.assets.value
-          ? runtimeState.assets.value
-          : searchboxAssets;
+      const filterAssets = resolveLiquidGlassComponentAssets(
+        resolvedMode.value,
+        runtimeState.assets.value,
+        staticAssets,
+        mergedRuntimeInput.value
+      );
 
       return h(
         "label",

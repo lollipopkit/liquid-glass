@@ -8,15 +8,20 @@ import {
   useAttrs,
   type PropType,
 } from "vue";
-import heroAssets from "virtual:liquidGlassFilterAssets?width=150&height=150&radius=75&bezelWidth=40&glassThickness=120&refractiveIndex=1.5";
 import type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterParamInput,
 } from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import { cn, toCssSize, useAnimatedNumber, useFilterId } from "../shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidParallaxHeroRuntimeParams = Partial<
   Pick<
@@ -56,6 +61,10 @@ export const LiquidParallaxHero = defineComponent({
       type: Number,
       default: -0.25,
     },
+    mode: {
+      type: String as PropType<LiquidGlassAssetMode | undefined>,
+      default: undefined,
+    },
     runtime: {
       type: Boolean,
       default: false,
@@ -73,14 +82,19 @@ export const LiquidParallaxHero = defineComponent({
     const attrs = useAttrs();
     const filterId = useFilterId("liquid-parallax-hero");
     const containerRef = ref<HTMLDivElement | null>(null);
+    const staticAssets = getLiquidGlassStaticAssets("hero");
+    const resolvedMode = computed(() =>
+      resolveLiquidGlassComponentMode(props.mode, props.runtime, Boolean(staticAssets))
+    );
+    const mergedRuntimeInput = computed(() => ({
+      ...HERO_RUNTIME_INPUT,
+      ...(props.runtimeParams ?? {}),
+    }));
     const runtimeState = useLiquidGlassRuntimeAssets(
-      computed(() => ({
-        ...HERO_RUNTIME_INPUT,
-        ...(props.runtimeParams ?? {}),
-      })),
+      mergedRuntimeInput,
       computed(() => ({
         ...(props.runtimeOptions ?? {}),
-        enabled: props.runtime,
+        enabled: resolvedMode.value === "runtime",
       }))
     );
     const progress = useAnimatedNumber(0, {
@@ -123,10 +137,12 @@ export const LiquidParallaxHero = defineComponent({
         Math.min(800, progress.value.value) * props.parallaxSpeed;
       const backgroundY = -60 + backgroundOffset;
       const focalY = 13 + backgroundOffset * 0.75;
-      const filterAssets =
-        props.runtime && runtimeState.assets.value
-          ? runtimeState.assets.value
-          : heroAssets;
+      const filterAssets = resolveLiquidGlassComponentAssets(
+        resolvedMode.value,
+        runtimeState.assets.value,
+        staticAssets,
+        mergedRuntimeInput.value
+      );
 
       return h("div", {}, [
         h(

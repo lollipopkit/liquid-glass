@@ -45,9 +45,14 @@ The migrated Svelte preview lives in `apps/liquid-glass-demo` and renders the
 workspace sources for `@lollipopkit/liquid-glass-svelte` and
 `@lollipopkit/liquid-glass-vite` through local Vite aliases.
 
-## Vite Requirement
+## Optional Vite Static Assets
 
-The UI packages currently require Vite. Register the plugin from `@lollipopkit/liquid-glass-vite` in the consumer app before using any React/Vue/Svelte component package.
+The React, Vue, and Svelte packages now work without Vite by falling back to
+runtime asset generation.
+
+If you still want build-time static assets, register the plugin from
+`@lollipopkit/liquid-glass-vite` in your app and wire those assets into the
+framework package you use.
 
 ```ts
 import { defineConfig } from "vite";
@@ -55,6 +60,15 @@ import { liquidGlassPlugin } from "@lollipopkit/liquid-glass-vite";
 
 export default defineConfig({
   plugins: [liquidGlassPlugin()],
+});
+```
+
+```ts
+import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
+import { configureLiquidGlassStaticAssets } from "@lollipopkit/liquid-glass-react";
+
+configureLiquidGlassStaticAssets({
+  searchbox: searchboxAssets,
 });
 ```
 
@@ -97,6 +111,7 @@ filter assets directly at runtime:
 
 ```ts
 import {
+  configureLiquidGlassWorkerRuntime,
   createManagedLiquidGlassRuntimeAssets,
   createLiquidGlassRuntimeAssets,
   prewarmLiquidGlassManagedRuntimeAssets,
@@ -159,6 +174,19 @@ const managedAssets = await createManagedLiquidGlassRuntimeAssets(
 );
 ```
 
+If your bundler needs a custom worker loader, configure it before using the
+managed runtime helpers:
+
+```ts
+configureLiquidGlassWorkerRuntime({
+  workerFactory: (options) =>
+    new Worker(new URL("./liquidGlassRuntime.worker.js", import.meta.url), {
+      name: options?.name,
+      type: "module",
+    }),
+});
+```
+
 Runtime options:
 
 - `backend?: "auto" | "ts" | "worker"`
@@ -177,6 +205,18 @@ Shared runtime helpers:
 - `createLiquidGlassRuntimeAssets()`: main-thread runtime helper
 - `createManagedLiquidGlassRuntimeAssets()`: shared `ts` / `worker` runtime helper
 - `prewarmLiquidGlassManagedRuntimeAssets()`: shared worker prewarm helper
+- `configureLiquidGlassWorkerRuntime()`: optional worker factory override for non-default bundler wiring
 
 These runtime helpers are also re-exported from the React, Vue, and Svelte
 packages so framework consumers can keep using a single package entrypoint.
+
+## Component Asset Modes
+
+All framework components support:
+
+- `mode="auto"`: use registered static assets when available, otherwise fall back to runtime assets
+- `mode="static"`: prefer registered static assets, but still falls back to runtime when no static assets were configured
+- `mode="runtime"`: force runtime assets
+
+`runtime` remains available as a compatibility flag, but `mode` is now the
+preferred API.

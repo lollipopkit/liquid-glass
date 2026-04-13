@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
 import type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterParamInput,
 } from "@lollipopkit/liquid-glass";
 
@@ -14,7 +14,12 @@ import {
   useControllableValue,
   useFilterId,
 } from "./shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidSliderRuntimeParams = Partial<
   Pick<
@@ -34,6 +39,7 @@ export type LiquidSliderProps = Omit<
   max?: number;
   step?: number;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeOptions?: CreateLiquidGlassRuntimeAssetsOptions;
   runtimeParams?: LiquidSliderRuntimeParams;
@@ -63,6 +69,7 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
   min = 0,
   onChange,
   onValueChange,
+  mode,
   runtime = false,
   runtimeOptions,
   runtimeParams,
@@ -78,14 +85,21 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
     clamp(defaultValue ?? min, min, safeMax),
     onValueChange
   );
+  const mergedRuntimeInput = {
+    ...SLIDER_RUNTIME_INPUT,
+    ...runtimeParams,
+  };
+  const staticAssets = getLiquidGlassStaticAssets("slider");
+  const resolvedMode = resolveLiquidGlassComponentMode(
+    mode,
+    runtime,
+    Boolean(staticAssets)
+  );
   const runtimeState = useLiquidGlassRuntimeAssets(
-    {
-      ...SLIDER_RUNTIME_INPUT,
-      ...runtimeParams,
-    },
+    mergedRuntimeInput,
     {
       ...runtimeOptions,
-      enabled: runtime,
+      enabled: resolvedMode === "runtime",
     }
   );
   const normalizedValue = clamp(value, min, safeMax);
@@ -142,7 +156,12 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
     ? "rgba(255,255,255,0.2)"
     : `rgba(255,255,255,${mix(1, 0.1, activeAmount.value)})`;
   const thumbShadow = "0 3px 14px rgba(0,0,0,0.1)";
-  const filterAssets = runtime && runtimeState.assets ? runtimeState.assets : sliderAssets;
+  const filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 
   return (
     <div

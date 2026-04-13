@@ -1,7 +1,7 @@
 {
   "name": "@lollipopkit/liquid-glass-react",
   "version": "0.1.2",
-  "description": "React liquid glass components for Vite projects.",
+  "description": "React liquid glass components with optional Vite asset optimization.",
   "license": "MIT",
   "type": "module",
   "sideEffects": [
@@ -50,7 +50,6 @@
     "tailwind-merge": "^2.6.0"
   },
   "peerDependencies": {
-    "@lollipopkit/liquid-glass-vite": "0.1.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   }

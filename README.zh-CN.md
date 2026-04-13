@@ -45,9 +45,13 @@ npm run demo:preview
 直接渲染 `@lollipopkit/liquid-glass-svelte` 与
 `@lollipopkit/liquid-glass-vite` 的 workspace 源码。
 
-## Vite 前置要求
+## 可选的 Vite 静态资源优化
 
-当前 UI 包要求消费端使用 Vite，并先在应用里注册 `@lollipopkit/liquid-glass-vite` 提供的插件。
+React、Vue、Svelte 组件包现在已经可以在不依赖 Vite 的情况下工作，
+默认会回退到 runtime 资源生成。
+
+如果你仍然希望使用构建期静态资源，可以在应用里注册
+`@lollipopkit/liquid-glass-vite` 插件，然后把生成的资源注册到对应的框架包。
 
 ```ts
 import { defineConfig } from "vite";
@@ -55,6 +59,15 @@ import { liquidGlassPlugin } from "@lollipopkit/liquid-glass-vite";
 
 export default defineConfig({
   plugins: [liquidGlassPlugin()],
+});
+```
+
+```ts
+import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
+import { configureLiquidGlassStaticAssets } from "@lollipopkit/liquid-glass-react";
+
+configureLiquidGlassStaticAssets({
+  searchbox: searchboxAssets,
 });
 ```
 
@@ -96,6 +109,7 @@ type LiquidGlassFilterAssets = {
 
 ```ts
 import {
+  configureLiquidGlassWorkerRuntime,
   createManagedLiquidGlassRuntimeAssets,
   createLiquidGlassRuntimeAssets,
   prewarmLiquidGlassManagedRuntimeAssets,
@@ -158,6 +172,18 @@ const managedAssets = await createManagedLiquidGlassRuntimeAssets(
 );
 ```
 
+如果你的 bundler 需要自定义 worker 装载方式，可以在首次调用共享运行时 helper 之前先配置：
+
+```ts
+configureLiquidGlassWorkerRuntime({
+  workerFactory: (options) =>
+    new Worker(new URL("./liquidGlassRuntime.worker.js", import.meta.url), {
+      name: options?.name,
+      type: "module",
+    }),
+});
+```
+
 运行时选项：
 
 - `backend?: "auto" | "ts" | "worker"`
@@ -175,6 +201,17 @@ const managedAssets = await createManagedLiquidGlassRuntimeAssets(
 - `createLiquidGlassRuntimeAssets()`：主线程运行时 helper
 - `createManagedLiquidGlassRuntimeAssets()`：可在 `ts` / `worker` 之间切换的共享运行时 helper
 - `prewarmLiquidGlassManagedRuntimeAssets()`：共享 worker 预热 helper
+- `configureLiquidGlassWorkerRuntime()`：在默认 worker 装载方式不适用时覆盖 worker factory
 
 这些运行时 helper 现在也会从 React、Vue、Svelte 包入口直接 re-export，
 框架使用方不需要额外再引一次 `@lollipopkit/liquid-glass`。
+
+## 组件资源模式
+
+所有框架组件都支持：
+
+- `mode="auto"`：优先使用已注册的静态资源；如果没有注册，则自动回退到 runtime 资源
+- `mode="static"`：优先使用已注册的静态资源；如果没有静态资源，也会回退到 runtime
+- `mode="runtime"`：强制使用 runtime 资源
+
+`runtime` 仍然保留为兼容入口，但推荐优先使用 `mode`。

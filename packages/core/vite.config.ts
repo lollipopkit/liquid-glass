@@ -9,9 +9,15 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     lib: {
-      entry: resolve(rootDir, "src/index.ts"),
+      entry: {
+        index: resolve(rootDir, "src/index.ts"),
+        "runtime/liquidGlassRuntime.worker": resolve(
+          rootDir,
+          "src/runtime/liquidGlassRuntime.worker.ts"
+        ),
+      },
       formats: ["es"],
-      fileName: () => "index.js",
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
   },
 });

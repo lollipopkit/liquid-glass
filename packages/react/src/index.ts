@@ -26,16 +26,22 @@ function ensureComponentStyles() {
 ensureComponentStyles();
 
 export type {
+  CreateLiquidGlassWorkerOptions,
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterAssets,
   LiquidGlassFilterParamInput,
   LiquidGlassManagedRuntimeAssets,
   LiquidGlassRuntimeAssets,
   LiquidGlassRuntimeBackend,
   LiquidGlassRuntimeBackendPreference,
+  LiquidGlassStaticAssetKey,
+  LiquidGlassStaticAssetRegistry,
+  LiquidGlassWorkerFactory,
 } from "@lollipopkit/liquid-glass";
 export {
   canUseLiquidGlassWorkerRuntime,
+  configureLiquidGlassWorkerRuntime,
   createLiquidGlassRuntimeAssets,
   createManagedLiquidGlassRuntimeAssets,
   normalizeLiquidGlassFilterParams,
@@ -43,6 +49,11 @@ export {
   primeLiquidGlassWorkerRuntime,
   resolveLiquidGlassRuntimeBackend,
 } from "@lollipopkit/liquid-glass";
+export {
+  configureLiquidGlassStaticAssets,
+  getLiquidGlassStaticAssets,
+  resetLiquidGlassStaticAssets,
+} from "./staticAssets";
 export type { LiquidSearchboxProps } from "./components/LiquidSearchbox";
 export { LiquidSearchbox } from "./components/LiquidSearchbox";
 export type { LiquidSliderProps } from "./components/LiquidSlider";

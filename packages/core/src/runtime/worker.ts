@@ -1,6 +1,3 @@
-/// <reference path="./workerModules.d.ts" />
-
-import LiquidGlassRuntimeWorker from "./liquidGlassRuntime.worker?worker";
 import {
   createLiquidGlassRuntimeAssets,
   resolveLiquidGlassRuntimeBackend,
@@ -30,6 +27,14 @@ export type LiquidGlassManagedRuntimeAssets = Omit<
   ): Promise<void>;
 };
 
+export type CreateLiquidGlassWorkerOptions = {
+  name?: string;
+};
+
+export type LiquidGlassWorkerFactory = (
+  options?: CreateLiquidGlassWorkerOptions
+) => Worker;
+
 type WorkerRuntimeState = LiquidGlassFilterAssets & {
   dpr: number;
   displacementObjectUrl: string;
@@ -47,6 +52,7 @@ const MAX_WORKER_RENDER_CACHE_ENTRIES = 4;
 let renderCache = new Map<string, Promise<WorkerRenderResponse>>();
 let sharedWorkerClient: LiquidGlassRuntimeWorkerClient | undefined;
 let workerWarmupPromise: Promise<void> | undefined;
+let workerFactoryOverride: LiquidGlassWorkerFactory | undefined;
 
 class LiquidGlassRuntimeWorkerClient {
   private readonly pending = new Map<
@@ -57,9 +63,13 @@ class LiquidGlassRuntimeWorkerClient {
     }
   >();
   private requestId = 0;
-  private readonly worker = new LiquidGlassRuntimeWorker();
+  private readonly worker: Worker;
 
   constructor() {
+    this.worker = getLiquidGlassWorkerFactory()({
+      name: "liquid-glass-runtime",
+    });
+
     this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const pendingRequest = this.pending.get(event.data.id);
       if (!pendingRequest) {
@@ -87,6 +97,15 @@ class LiquidGlassRuntimeWorkerClient {
 
       this.pending.clear();
     };
+  }
+
+  dispose(reason = new Error("Liquid glass worker runtime was reset.")) {
+    for (const pendingRequest of this.pending.values()) {
+      pendingRequest.reject(reason);
+    }
+
+    this.pending.clear();
+    this.worker.terminate();
   }
 
   render(
@@ -134,8 +153,41 @@ function supportsWorkerBackend() {
   );
 }
 
+function createDefaultLiquidGlassWorker(
+  options?: CreateLiquidGlassWorkerOptions
+): Worker {
+  const workerPath = ["./runtime", "liquidGlassRuntime.worker.js"].join("/");
+  const workerUrl = new URL(workerPath, import.meta.url);
+  return new Worker(workerUrl, {
+    name: options?.name,
+    type: "module",
+  });
+}
+
+function getLiquidGlassWorkerFactory(): LiquidGlassWorkerFactory {
+  return workerFactoryOverride ?? createDefaultLiquidGlassWorker;
+}
+
 export function canUseLiquidGlassWorkerRuntime() {
   return supportsWorkerBackend();
+}
+
+export function configureLiquidGlassWorkerRuntime(options?: {
+  workerFactory?: LiquidGlassWorkerFactory;
+}) {
+  const nextFactory = options?.workerFactory;
+  if (nextFactory === workerFactoryOverride) {
+    return;
+  }
+
+  workerFactoryOverride = nextFactory;
+  renderCache = new Map();
+  workerWarmupPromise = undefined;
+
+  if (sharedWorkerClient) {
+    sharedWorkerClient.dispose();
+    sharedWorkerClient = undefined;
+  }
 }
 
 function getWorkerClient() {

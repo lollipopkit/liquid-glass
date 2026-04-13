@@ -3,20 +3,22 @@
   import type { HTMLInputAttributes } from "svelte/elements";
   import type {
     CreateLiquidGlassRuntimeAssetsOptions,
-    LiquidGlassFilterAssets,
+    LiquidGlassAssetMode,
     LiquidGlassFilterParamInput,
   } from "@lollipopkit/liquid-glass";
-  import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
   import {
     createLiquidGlassRuntimeStore,
+    resolveLiquidGlassComponentAssets,
+    resolveLiquidGlassComponentMode,
     type LiquidGlassRuntimeStore,
     type LiquidGlassRuntimeStoreState,
   } from "../runtime";
+  import { getLiquidGlassStaticAssets } from "../staticAssets";
   import { createAnimatedNumber, createFilterId, mix } from "../shared";
 
-  export type LiquidSearchboxRuntimeParams = Partial<
+  type LiquidSearchboxRuntimeParams = Partial<
     Pick<
       LiquidGlassFilterParamInput,
       "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
@@ -45,6 +47,7 @@
   export let autocomplete: HTMLInputAttributes["autocomplete"] = "off";
   export let inputClass = "";
   export let className = "";
+  export let mode: LiquidGlassAssetMode | undefined = undefined;
   export let runtime = false;
   export let runtimeParams: LiquidSearchboxRuntimeParams = {};
   export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
@@ -92,7 +95,9 @@
     ...SEARCHBOX_RUNTIME_INPUT,
     ...runtimeParams,
   };
-  $: if (runtime) {
+  const staticAssets = getLiquidGlassStaticAssets("searchbox");
+  $: resolvedMode = resolveLiquidGlassComponentMode(mode, runtime, Boolean(staticAssets));
+  $: if (resolvedMode === "runtime") {
     if (!runtimeStore) {
       runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
       unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
@@ -116,8 +121,12 @@
   $: specularOpacity = 0.2;
   $: specularSaturation = 4;
   $: boxShadow = "0 4px 16px rgba(0, 0, 0, 0.16)";
-  $: filterAssets =
-    runtime && runtimeState.assets ? runtimeState.assets : searchboxAssets;
+  $: filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 </script>
 
 <svelte:window on:pointerup={() => (pressed = false)} on:pointercancel={() => (pressed = false)} />

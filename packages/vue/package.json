@@ -1,7 +1,7 @@
 {
   "name": "@lollipopkit/liquid-glass-vue",
   "version": "0.1.2",
-  "description": "Vue liquid glass components for Vite projects.",
+  "description": "Vue liquid glass components with optional Vite asset optimization.",
   "license": "MIT",
   "type": "module",
   "sideEffects": [
@@ -49,7 +49,6 @@
     "@lollipopkit/liquid-glass": "0.1.2"
   },
   "peerDependencies": {
-    "@lollipopkit/liquid-glass-vite": "0.1.2",
     "vue": "^3.5.0"
   }
 }

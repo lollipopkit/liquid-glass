@@ -1,126 +1,149 @@
-# liquid-glass Runtime / Wasm Evolution Plan
+# liquid-glass 去除 Vite 强依赖计划
 
 ## 背景
 
-当前项目的核心形态是：
+当前仓库已经完成了几件关键工作：
 
-- `packages/core` 负责生成 displacement / specular / magnifying 三类位图数据
-- `packages/vite` 在构建期或 dev server 请求期生成并缓存 PNG 资源
-- React / Vue / Svelte 组件在运行时通过 SVG filter 消费这些资源
+- `packages/core` 提供了浏览器运行时生成能力
+- `packages/core` 提供了 shared worker runtime
+- React / Vue / Svelte 三个框架包已经可以直接 re-export runtime API
+- 五个组件都已经支持 `runtime` / `runtimeParams` / `runtimeOptions`
 
-这意味着当前方案本质上是：
+这意味着组件库已经不再只能依赖 `virtual:liquidGlassFilterAssets?...` 才能工作。
 
-- 预计算贴图
-- 运行时使用 `feImage` + `feDisplacementMap` + `feBlend`
-- 面向组件库分发，而不是面向实时图形引擎
+但当前仍存在两类 Vite 绑定：
 
-现阶段已明确接受以下前提：
+1. 框架包层面的 Vite 强依赖
+   - `@lollipopkit/liquid-glass-react`
+   - `@lollipopkit/liquid-glass-vue`
+   - `@lollipopkit/liquid-glass-svelte`
+   这三个包当前仍把 `@lollipopkit/liquid-glass-vite` 放在 `peerDependencies` 中
 
-1. 需要暴露运行时可调参数，而不是只提供预设组件
-2. 调参时允许并需要解决可感知卡顿
-3. 动态更新将成为核心卖点，而不是偶发交互
-4. 可以接受 API 和渲染架构升级成本
+2. 实现层面的 Vite 绑定
+   - 组件默认静态模式仍依赖 `virtual:liquidGlassFilterAssets?...`
+   - `packages/core/src/runtime/worker.ts` 当前仍使用 `./liquidGlassRuntime.worker?worker`
 
-因此，项目应该从“纯预生成资源”演进为“双模式架构”：
+所以现在的目标不应该是“直接删除 Vite 包”，而应该是：
 
-- `static mode`: 保留现有 Vite 预生成路径
-- `runtime mode`: 新增浏览器运行时动态生成路径
+- 让 Vite 从“必需前提”变成“可选优化”
+- 让框架组件在没有 Vite 插件的情况下也能工作
+- 为后续完全 bundler-agnostic 的 worker 装载方案铺路
+
+---
 
 ## 结论
 
-### 结论一：应该迁移到运行时动态生成
+### 结论一：值得去除 Vite 强依赖
 
 原因：
 
-- 需求已明确要求运行时调参
-- 当前 `virtual:` 资源模式不适合高频参数更新
-- 现有数值内核是纯计算逻辑，适合被抽成运行时可调用模块
+- runtime 模式已经存在，组件具备脱离 `virtual:` 资源工作的能力
+- 保留 Vite 作为唯一前提，会限制 Next.js、Webpack、Rspack、Parcel、Rollup 等环境接入
+- 现在继续把 UI 包描述为 “for Vite projects” 已经不符合代码现状
 
-### 结论二：应该为 Wasm 预留路线，但不应一开始就全量 Wasm 化
+### 结论二：应采用“两阶段去依赖”方案
 
-原因：
+第一阶段：
 
-- 现有重计算集中在像素级双重循环和大量 `sqrt` / 折射计算
-- 这部分非常适合 Wasm
-- 但先用 TS 完成 runtime API 和组件接入，能更快验证产品模型与性能瓶颈
-- 未确认瓶颈前直接引入 Rust/Wasm，会增加调试、构建和发布复杂度
+- 去掉框架包对 `@lollipopkit/liquid-glass-vite` 的强依赖
+- 将组件默认行为改成“不要求 Vite 插件”
+- 保留 Vite 静态资源模式作为可选路径
 
-### 结论三：当前不应直接迁移到 WebGL / WebGPU
+第二阶段：
 
-原因：
+- 替换 `?worker` 这类 Vite 风格 worker 装载方式
+- 让 shared worker runtime 也脱离 Vite 专属打包语法
 
-- 当前渲染链路依赖 SVG filter 和组件库形态
-- GPU 化不是替换一个计算函数，而是重写渲染器
-- 当前首要问题是“动态生成贴图”，不是“重建整条实时图形管线”
-- 只有当 SVG filter 本身成为主要运行时瓶颈时，才值得进入 WebGL 方案
-
-### 结论四：WebGPU 不是当前阶段的主路线
+### 结论三：当前不应删除 `@lollipopkit/liquid-glass-vite`
 
 原因：
 
-- 浏览器覆盖、工程复杂度、调试成本都高于 WebGL
-- 当前效果模型仍是 2D 位移/高光驱动，不需要过早引入更重的 GPU 抽象
+- 它仍然是有价值的优化包
+- 构建期预生成资源、缓存和 demo 仍然能从它获益
+- 对追求更低首建成本的用户，静态资源模式仍然是有效选项
+
+所以合理定位是：
+
+- `@lollipopkit/liquid-glass-vite`：可选优化
+- `@lollipopkit/liquid-glass`：核心运行时与算法
+- React / Vue / Svelte 包：默认可独立工作
+
+---
 
 ## 目标
 
 ### 产品目标
 
-- 支持运行时动态修改液态玻璃参数
-- 支持连续交互更新，包括拖动、动画、参数面板
-- 保留当前跨 React / Vue / Svelte 的消费形态
-- 保留现有静态资源模式，避免破坏现有用户
+- React / Vue / Svelte 用户在不安装 Vite 插件时也能直接使用组件
+- 默认使用体验不依赖 `virtual:` 模块
+- 保留静态模式给需要构建期优化的用户
 
 ### 技术目标
 
-- 将计算内核从 Vite 绑定中解耦
-- 提供统一的 runtime asset 生成 API
-- 为后续 Wasm 内核替换预留稳定接口
-- 建立性能基线、压测方法和回归标准
+- 消除框架包对 `@lollipopkit/liquid-glass-vite` 的强依赖
+- 将组件默认工作模式切换为 runtime-first
+- 保留 static mode 作为显式选择
+- 重构 worker 装载方式，避免 `?worker` 成为最终 API 前提
 
 ### 非目标
 
-- 当前阶段不做 WebGPU 主渲染器
-- 当前阶段不删除 SVG filter 路线
-- 当前阶段不强制所有用户迁移到 runtime mode
-- 当前阶段不同时重构三套框架组件的视觉 API
+- 当前阶段不移除 `packages/vite`
+- 当前阶段不重写 SVG filter 架构
+- 当前阶段不引入 WebGL / WebGPU
+- 当前阶段不为了去 Vite 依赖而放弃 worker runtime
 
-## 当前架构判断
+---
 
-### 当前优势
+## 当前状态判断
 
-- 工程简单，资源可缓存
-- 组件消费方式统一
-- 对使用者透明，集成成本低
-- PNG 资源无损且适合作为 `feImage` 输入
+### 已完成能力
 
-### 当前限制
+- `createLiquidGlassRuntimeAssets()`
+- `createManagedLiquidGlassRuntimeAssets()`
+- `prewarmLiquidGlassManagedRuntimeAssets()`
+- `resolveLiquidGlassRuntimeBackend()`
+- React `useLiquidGlassRuntimeAssets()`
+- Vue `useLiquidGlassRuntimeAssets()`
+- Svelte `createLiquidGlassRuntimeStore()`
+- 五个组件的 `runtime` / `runtimeParams` / `runtimeOptions`
 
-- 参数主要在构建时确定
-- 高频动态更新不自然
-- 无法高效支持实时调参
-- 浏览器运行时无法直接复用 `virtual:` 资源模块流程
+### 当前仍然耦合 Vite 的点
 
-### 当前最重的计算模块
+#### 1. 框架包描述和依赖
 
-- `packages/core/src/lib/displacementMap.ts`
-- `packages/core/src/lib/specular.ts`
-- `packages/core/src/lib/magnifyingDisplacement.ts`
+三个框架包的 `package.json` 仍有：
 
-这些模块都是纯计算逻辑，适合抽象为 runtime engine 的 CPU 或 Wasm 后端。
+- `peerDependencies["@lollipopkit/liquid-glass-vite"]`
 
-## 演进原则
+这会给使用者传达错误信号：仿佛不用 Vite 插件就不能工作。
 
-1. 先稳定接口，再替换实现
-2. 先做 runtime TS 版，后做 Wasm 版
-3. 保持 `static` 与 `runtime` 双模式并存
-4. 保持框架组件层尽量薄，重逻辑集中在 `core`
-5. 不在尚未确认瓶颈前重写 GPU 渲染器
+#### 2. 组件默认静态入口
+
+五个组件仍默认 import：
+
+- `virtual:liquidGlassFilterAssets?...`
+
+虽然已有 runtime fallback，但默认路径仍然把静态资源作为第一来源。
+
+#### 3. shared worker runtime 装载
+
+`packages/core/src/runtime/worker.ts` 当前使用：
+
+```ts
+import LiquidGlassRuntimeWorker from "./liquidGlassRuntime.worker?worker";
+```
+
+这属于典型 Vite 风格 worker 导入。
+
+它可能在部分支持 `?worker` 的 bundler 下也可运行，但从架构角度仍不是“真正去除 Vite 依赖”的终态。
+
+---
 
 ## 目标架构
 
 目标架构分为四层：
 
-### 1. 参数与类型层
+### 1. Core 计算层
 
 位置：
 
@@ -128,39 +151,27 @@
 
 职责：
 
-- 参数规范化
-- surface preset
-- runtime/static 共用类型
-- 运行模式和后端能力声明
+- 参数归一化
+- displacement / specular / magnifying 计算
+- TS runtime
+- shared worker runtime
 
-### 2. 计算引擎层
+要求：
 
-位置：
+- 不要求上层必须使用 Vite
 
-- `packages/core`
-- 后续可新增 `packages/core-wasm` 或 `packages/wasm`
-
-职责：
-
-- displacement/specular/magnifying 的原始位图生成
-- CPU TS 实现
-- 可替换的 Wasm 实现
-- 统一输入输出协议
-
-### 3. 资源适配层
-
-位置：
-
-- `packages/core` 或新增 runtime asset 模块
-- `packages/vite`
+### 2. Worker 装载层
 
 职责：
 
-- `ImageData` / `Uint8Array` 到 URL / Blob / PNG 的转换
-- static mode 的 Vite asset emit
-- runtime mode 的浏览器资源生命周期管理
+- 负责 shared worker runtime 的跨 bundler 装载
+- 不暴露 `?worker` 给最终用户心智
 
-### 4. 组件消费层
+目标：
+
+- 替换当前 Vite 风格 worker 装载语法
+
+### 3. 框架适配层
 
 位置：
 
@@ -170,509 +181,514 @@
 
 职责：
 
-- 接收 `static assets` 或 `runtime assets`
-- 维护 SVG filter 结构
-- 在需要时驱动 runtime 生成与更新
+- 默认提供 runtime-first 组件体验
+- 暴露 hook / composable / store
+- 允许显式选择 static 或 runtime
+
+### 4. 可选构建优化层
+
+位置：
+
+- `packages/vite`
+
+职责：
+
+- 构建期静态资源生成
+- `virtual:` 模块
+- 预生成和缓存
+
+定位：
+
+- optional optimization
+- 不再是框架组件的必需前提
+
+---
+
+## 设计原则
+
+1. 先去掉“强依赖”，再去掉“实现依赖”
+2. 先稳定外部 API，再替换内部 worker 装载
+3. 默认路径面向更广泛的 bundler 兼容性
+4. static mode 作为显式优化选项，而不是默认前提
+5. 任何迁移都不能破坏当前已存在的 runtime API
+
+---
+
+## 最终对外心智
+
+目标对外模型应是：
+
+- `@lollipopkit/liquid-glass`
+  - 核心算法
+  - runtime API
+  - shared worker runtime
+
+- `@lollipopkit/liquid-glass-react`
+  - React 组件
+  - React hook
+  - 可直接工作，不要求 Vite
+
+- `@lollipopkit/liquid-glass-vue`
+  - Vue 组件
+  - Vue composable
+  - 可直接工作，不要求 Vite
+
+- `@lollipopkit/liquid-glass-svelte`
+  - Svelte 组件
+  - Svelte store
+  - 可直接工作，不要求 Vite
+
+- `@lollipopkit/liquid-glass-vite`
+  - 可选的构建期优化插件
+  - 提供 `virtual:` 资源模块
+
+---
 
 ## 分阶段计划
 
-## Phase 0: Baseline 与准备
+## Phase 0：基线与约束确认
 
 ### 目标
 
-- 固定当前行为
-- 建立性能基线
-- 明确改造边界
+- 明确哪些地方是“用户可见的 Vite 依赖”
+- 明确哪些地方是“内部实现的 Vite 依赖”
 
 ### 工作项
 
-- 为 `core` 计算函数建立基准测试脚本
-- 记录典型尺寸下的耗时：
-  - 小尺寸：150x150
-  - 中尺寸：420x56
-  - 大尺寸：600x240
-  - 高 DPR 场景：`dpr=2` / `dpr=3`
-- 统计以下阶段耗时：
-  - displacement 计算
-  - specular 计算
-  - magnifying 计算
-  - PNG 编码
-- 在 demo 中增加性能观察页
+- 梳理所有 `virtual:liquidGlass*` 入口
+- 梳理所有 `?worker` 导入
+- 梳理所有 README 中 “for Vite projects” 或强依赖描述
+- 梳理所有 `peerDependencies["@lollipopkit/liquid-glass-vite"]`
+- 明确当前 demo 和 benchmark 哪些仍默认走静态路径
 
 ### 输出
 
-- 基准结果文档
-- 参数规模与耗时对照表
-- 第一版 runtime 预算
+- Vite 绑定点清单
+- 外部 API 影响面
 
 ### 验收标准
 
-- 能明确知道当前瓶颈是计算、编码还是 SVG 渲染
+- 可以明确区分“必须改”与“可延后改”的 Vite 耦合点
 
-## Phase 1: Runtime API 设计与 TS 实现
+---
+
+## Phase 1：去除框架包的 Vite 强依赖
 
 ### 目标
 
-- 在不引入 Wasm 的前提下提供浏览器运行时生成能力
-- 保持现有 static mode 不变
+- 让 React / Vue / Svelte 包在包描述层不再依赖 Vite
 
 ### 工作项
 
-- 在 `packages/core` 中新增 runtime API
-- 将当前计算逻辑从 Vite 绑定中进一步解耦
-- 定义统一 asset 结构，区分：
-  - `StaticLiquidGlassFilterAssets`
-  - `RuntimeLiquidGlassFilterAssets`
-  - 或统一成一套可同时容纳 URL / object URL / canvas source 的结构
-- 新增类似以下 API：
+- 从以下包中移除 `peerDependencies["@lollipopkit/liquid-glass-vite"]`
+  - `packages/react/package.json`
+  - `packages/vue/package.json`
+  - `packages/svelte/package.json`
+- 更新包描述：
+  - 不再写 “for Vite projects”
+  - 改成更准确的 runtime-first 描述
+- 更新安装文档
+  - 将 `@lollipopkit/liquid-glass-vite` 从必装改成可选
+
+### 风险
+
+- 用户可能仍以为 static mode 是默认前提
+
+### 缓解
+
+- 文档明确写出：
+  - 默认可直接使用
+  - Vite 插件仅用于静态资源优化
+
+### 验收标准
+
+- 三个框架包安装说明都不再要求同时安装 `@lollipopkit/liquid-glass-vite`
+
+---
+
+## Phase 2：组件策略从 static-first 转向 runtime-first
+
+### 目标
+
+- 组件默认在没有 Vite 插件时也能正常工作
+- 保留 static mode，但改为显式选择
+
+### 设计方向
+
+当前组件模式：
+
+- 默认 import `virtual:liquidGlassFilterAssets?...`
+- 仅在 `runtime` 为真时切换 runtime
+
+目标模式：
+
+- 默认走 runtime
+- 提供显式 static 配置
+- 或者提供 `mode: "auto" | "static" | "runtime"`
+
+### 推荐 API
+
+建议统一引入：
 
 ```ts
-type LiquidGlassRuntimeBackend = "ts" | "wasm";
-
-type CreateRuntimeAssetsOptions = {
-  backend?: LiquidGlassRuntimeBackend;
-  dpr?: number;
-  signal?: AbortSignal;
-};
-
-type RuntimeLiquidGlassAssets = {
-  displacementUrl: string;
-  specularUrl: string;
-  magnifyingUrl?: string;
-  width: number;
-  height: number;
-  maxDisplacement: number;
-  dispose(): void;
-  update(params: LiquidGlassFilterParams): Promise<void>;
-};
-
-declare function createLiquidGlassRuntimeAssets(
-  params: LiquidGlassFilterParams,
-  options?: CreateRuntimeAssetsOptions
-): Promise<RuntimeLiquidGlassAssets>;
+type LiquidGlassAssetMode = "auto" | "static" | "runtime";
 ```
 
-- 明确资源生命周期：
-  - object URL 何时创建
-  - object URL 何时释放
-  - 连续更新时如何避免泄漏
-
-### 架构要求
-
-- 浏览器 runtime 不依赖 Vite plugin
-- Vite plugin 继续使用现有静态资源生成方式
-- runtime API 可以直接被 React/Vue/Svelte 使用
-
-### 验收标准
-
-- 在浏览器中无需 `virtual:` 模块即可生成可用 assets
-- 连续调参不会发生明显资源泄漏
-- 组件层能消费 runtime assets
-
-## Phase 2: 组件层双模式支持
-
-### 目标
-
-- 让现有组件同时支持 static mode 与 runtime mode
-- 不破坏现有用户代码
-
-### 工作项
-
-- 为 React / Vue / Svelte 组件补充新的资产输入模式
-- 组件支持三类来源：
-  - 预生成 `virtual:` assets
-  - 外部传入 runtime assets
-  - 内部根据 `params` 自动生成 runtime assets
-
-- 设计建议 API：
+组件 props 示例：
 
 ```ts
-type LiquidGlassRendererMode = "static" | "runtime";
-
-type SharedLiquidGlassProps = {
-  mode?: LiquidGlassRendererMode;
-  params?: Partial<LiquidGlassFilterParams>;
-  assets?: LiquidGlassFilterAssets | RuntimeLiquidGlassAssets;
-  runtimeBackend?: "ts" | "wasm";
+type CommonLiquidGlassRuntimeProps = {
+  mode?: LiquidGlassAssetMode;
+  runtimeParams?: ...;
+  runtimeOptions?: ...;
 };
 ```
 
-- 组件内需要解决：
-  - 参数变化时去抖或节流
-  - 过期任务取消
-  - 更新期间的视觉切换策略
-  - 组件卸载时资源释放
+语义建议：
 
-### 交互策略
-
-- 默认先做“响应式更新”
-- 若频繁拖动导致抖动，可引入：
-  - `requestAnimationFrame` 批处理
-  - 参数更新节流
-  - 拖动中低精度、停止后高精度重算
-
-### 验收标准
-
-- Demo 中可实时调整核心参数
-- 现有 static mode 示例不受影响
-- 框架间 API 保持语义一致
-
-## Phase 3: 性能优化与 Worker 化
-
-### 目标
-
-- 在引入 Wasm 之前，尽可能挖掘 TS 路线性能
+- `mode="auto"`
+  - 若运行环境无法走 static 资源链，则使用 runtime
+  - 若显式传入 assets 或 static 资源可用，则可走 static
+- `mode="runtime"`
+  - 强制 runtime
+- `mode="static"`
+  - 强制使用静态资源链
 
 ### 工作项
 
-- 优化 `core` 算法：
-  - 用 `TypedArray` 替换不必要的普通数组
-  - 减少临时对象分配
-  - 减少重复 `sqrt`
-  - 单次遍历完成更多统计，例如 `maxDisplacement`
-- 优化 runtime 资源生成：
-  - 避免重复编码无变化资源
-  - 引入参数缓存
-  - 对相近参数做可选量化缓存
-- 引入 Web Worker：
-  - 将位图生成移到 worker
-  - 主线程只负责组件更新和资源替换
-  - 评估 transferable object 的收益
+- 为五个组件设计统一 mode API
+- 决定是否保留 `runtime: boolean` 作为兼容入口
+- 若保留：
+  - 标记为兼容层
+  - 新文档主推 `mode`
+- 组件内部改为：
+  - 优先 runtime-first
+  - static 作为显式选择
 
-### 关键判断点
+### 风险
 
-满足以下任一条件时，进入 Phase 4 Wasm：
+- 改默认行为会影响现有使用者的首建性能
 
-- 中高尺寸下交互更新仍明显卡顿
-- Worker + TS 优化后仍无法达到目标帧率
-- 主要瓶颈明确在数值计算内核而非编码或 SVG filter
+### 缓解
+
+- 初期采用兼容模式：
+  - 若检测到 static 资源已存在则仍可优先用 static
+  - 新版本文档引导使用 `mode`
+- 或作为 minor 版本引入，明确变更说明
 
 ### 验收标准
 
-- 主线程长任务显著减少
-- 参数拖动流畅度明显提升
-- 形成是否进入 Wasm 的数据依据
+- 在没有 Vite 插件的示例工程里，五个组件可直接工作
 
-## Phase 4: Wasm 内核落地
+---
+
+## Phase 3：抽象 static provider，弱化 `virtual:` 直连
 
 ### 目标
 
-- 将最重的数值计算迁移到 Wasm
-- 保持 JS/TS API 稳定
+- 不让组件源码直接把 `virtual:` 模块当成不可替代前提
 
-### 技术决策
+### 设计方向
 
-- 优先使用 Rust -> Wasm
-- 不将 AssemblyScript 作为主实现路线
+当前问题：
+
+- 每个组件源码都直接 import `virtual:liquidGlassFilterAssets?...`
+
+更合理的结构：
+
+- static provider 单独收口
+- runtime provider 单独收口
+- 组件只依赖统一的“资产解析器”
+
+示意：
+
+```ts
+type LiquidGlassResolvedAssets =
+  | { mode: "static"; assets: LiquidGlassFilterAssets }
+  | { mode: "runtime"; assets: LiquidGlassFilterAssets | null; pending: boolean };
+```
+
+### 工作项
+
+- 新增组件侧 asset resolver
+- 将 `virtual:` import 收口到单独文件
+- 避免每个组件都直接耦合 Vite 虚拟模块
+
+### 收益
+
+- 后续可以更容易替换 static provider
+- 组件实现更清晰
+
+### 验收标准
+
+- 组件层不再散落大量直接 `virtual:` import 逻辑
+
+---
+
+## Phase 4：重构 shared worker runtime 的装载方式
+
+### 目标
+
+- 让 worker runtime 真正脱离 Vite 专属导入语法
+
+### 当前问题
+
+`packages/core/src/runtime/worker.ts` 使用：
+
+```ts
+import LiquidGlassRuntimeWorker from "./liquidGlassRuntime.worker?worker";
+```
+
+这会导致：
+
+- bundler 兼容性受限
+- 包的“去 Vite 依赖”只完成了一半
+
+### 候选方案
+
+#### 方案 A：通过 `new URL(..., import.meta.url)` 装载 worker
+
+示意：
+
+```ts
+new Worker(new URL("./liquidGlassRuntime.worker.js", import.meta.url), {
+  type: "module",
+});
+```
+
+优点：
+
+- 在现代 bundler 中比 `?worker` 更通用
+
+缺点：
+
+- 仍依赖 bundler 能处理 worker 文件资源
+
+#### 方案 B：单独导出 worker URL / factory
+
+让构建产物显式包含 worker 文件，并在 runtime 中通过 URL 创建 Worker。
+
+优点：
+
+- 包结构更清晰
+
+缺点：
+
+- 打包配置更复杂
+
+#### 方案 C：应用层注入 worker factory
+
+core 只提供 worker 协议与逻辑，真正的 Worker 实例由宿主注入。
+
+示意：
+
+```ts
+type LiquidGlassWorkerFactory = () => Worker;
+```
+
+优点：
+
+- 最彻底的 bundler 解耦
+
+缺点：
+
+- 使用门槛更高
+- 默认体验变差
+
+### 推荐路线
+
+先做方案 A，再评估是否需要方案 C。
 
 原因：
 
-- Rust 的数值计算能力、生态成熟度和可预测性更强
-- 对 TypedArray / linear memory 控制更清晰
-- 更适合长期维护高性能计算内核
+- 方案 A 改造成本低
+- 对外 API 变化小
+- 能最快把“Vite 风格专有语法”换掉
 
-### 迁移范围
+### 工作项
 
-优先迁移：
-
-- `calculateDisplacementMap`
-- `calculateDisplacementMap2`
-- `calculateRefractionSpecular`
-- `calculateMagnifyingDisplacementMap`
-
-暂不迁移：
-
-- 参数解析
-- 组件层逻辑
-- Vite plugin 的模块解析逻辑
-
-### 边界设计
-
-- JS 层负责：
-  - 参数校验和规范化
-  - 资源生命周期
-  - 组件集成
-  - fallback 选择
-
-- Wasm 层负责：
-  - 纯数值计算
-  - 向预分配 buffer 写入 RGBA 数据
-  - 返回必要统计信息，如 `maxDisplacement`
-
-### 关键约束
-
-- 减少 JS / Wasm 边界调用次数
-- 使用批量 buffer 读写
-- 避免逐像素跨边界交互
-
-### 交付方式
-
-可选方案 A：
-
-- 新增 `packages/liquid-glass-wasm`
-
-可选方案 B：
-
-- 在 `packages/core` 中提供可选异步加载的 Wasm backend
-
-建议优先方案 A，原因：
-
-- 构建边界更清晰
-- 便于消费者按需安装
-- 不强制所有用户引入 Wasm 产物
+- 将 `?worker` 替换为更通用的 worker URL 装载
+- 确认 build 产物包含 worker 资源
+- 在 React / Vue / Svelte / demo 中回归验证
 
 ### 验收标准
 
-- 中高尺寸 runtime 更新耗时显著下降
-- JS API 基本不变
-- 不支持 Wasm 的环境可自动 fallback 到 TS
+- shared worker runtime 不再依赖 `?worker`
 
-## Phase 5: WebGL 评估门槛
+---
 
-### 只有满足以下条件时才进入 WebGL 方案
+## Phase 5：将 `@lollipopkit/liquid-glass-vite` 重新定位为可选优化
 
-- Wasm 已经落地
-- 计算生成不再是主要瓶颈
-- 运行时瓶颈明确落在 SVG filter 渲染本身
-- 同屏实例数较多
-- 动画是连续逐帧且持续存在
+### 目标
 
-### WebGL 目标
+- 明确 Vite 插件的产品边界
 
-- 新增独立 GPU renderer
-- 不替换现有 static/runtime SVG filter renderer
-- 作为高性能模式存在
+### 新定位
 
-### 明确不在当前阶段处理
+`@lollipopkit/liquid-glass-vite` 应只负责：
 
-- WebGPU 主路线
-- 全库改为 canvas-only 渲染
-- 删除 DOM / SVG 组件接口
+- `virtual:liquidGlass*` 模块
+- 构建期资源生成
+- 静态资源缓存
+- Vite 特定的 DX 优化
 
-## API 设计原则
+不再负责：
 
-### 保持向后兼容
+- 组件是否可用
+- 运行时是否可工作
 
-- 现有 `virtual:` 模块继续可用
-- 现有组件默认仍可使用静态模式
-- 新增能力应尽量通过可选 props / 新 API 引入
+### 工作项
 
-### 统一能力声明
+- 更新 README
+- 更新 demo 文案
+- 更新包描述
+- 更新示例代码
 
-建议新增以下概念：
+### 验收标准
 
-```ts
-type LiquidGlassCapability = {
-  staticAssets: boolean;
-  runtimeAssets: boolean;
-  wasmBackend: boolean;
-  workerBackend: boolean;
-  webglRenderer: boolean;
-};
-```
+- 文档中不再出现“UI 包必须依赖 Vite 插件”的表达
 
-用于：
+---
 
-- demo 能力展示
-- debug 输出
-- 环境选择策略
+## Phase 6：无 Vite 宿主验证
 
-### 显式资源释放
+### 目标
 
-runtime mode 下必须提供 `dispose()`，避免 object URL 和临时 buffer 泄漏。
+- 用真实宿主证明“去 Vite 强依赖”已完成
 
-## 建议的目录演进
+### 推荐验证宿主
 
-仅为方向建议，不要求一次完成：
+- Next.js
+- Webpack 最小示例
+- Rspack 最小示例
+- 纯 Vite 示例，验证兼容未退化
 
-```text
-packages/
-  core/
-    src/
-      runtime/
-        assets.ts
-        cache.ts
-        workerClient.ts
-      lib/
-        displacementMap.ts
-        specular.ts
-        magnifyingDisplacement.ts
-  vite/
-  react/
-  vue/
-  svelte/
-  wasm/                # 可选，Phase 4 引入
-```
+### 验收场景
 
-## 性能预算
+#### 场景一：无 Vite 插件
 
-以下是建议目标，不是当前已达成状态：
+- 安装 `@lollipopkit/liquid-glass-react`
+- 不安装 `@lollipopkit/liquid-glass-vite`
+- 使用 `LiquidSearchbox`
+- 使用 `LiquidMagnifyingGlass`
+- 使用 `runtimeOptions.backend="auto"`
 
-### 单次更新预算
+预期：
 
-- 小尺寸：应接近即时，无明显卡顿
-- 中尺寸：拖动过程中可接受，停止后迅速收敛
-- 大尺寸：允许采用“拖动时低精度，停止后高精度”
+- 组件可渲染
+- runtime 可工作
 
-### 主线程预算
+#### 场景二：有 Vite 插件
 
-- 主线程不应被长时间同步阻塞
-- 高频调参应优先走 worker 或异步后端
+- 安装 `@lollipopkit/liquid-glass-vite`
+- 使用 static mode
 
-### 内存预算
+预期：
 
-- 连续拖动不应无限增长 object URL
-- 需要可观测的缓存上限与清理策略
+- 现有 `virtual:` 方案仍可工作
 
-## 测试计划
+#### 场景三：worker 可用环境
 
-### 单元测试
+- `backend="worker"`
 
-- 参数规范化
-- surface preset 输出稳定性
-- 位图通道值范围正确性
-- `maxDisplacement` 计算稳定性
+预期：
 
-### 回归测试
+- shared worker runtime 正常运行
 
-- static mode 输出不变或变化可解释
-- runtime mode 与 static mode 在同参数下视觉足够接近
+### 验收标准
 
-### 性能测试
+- 至少一个非 Vite 宿主验证通过
 
-- Node 侧计算 benchmark
-- 浏览器 runtime benchmark
-- Worker 与主线程对比
-- TS backend 与 Wasm backend 对比
+---
 
-### 视觉测试
+## 兼容性策略
 
-- demo 截图对比
-- 关键组件在 React / Vue / Svelte 中表现一致
+### 对现有用户的影响
 
-## 风险
+潜在影响：
 
-### 风险一：运行时资源生命周期复杂
+- 默认模式若发生变化，首建性能行为可能不同
+- 以前必须装 Vite 插件的心智会变
 
-表现：
+### 兼容策略
 
-- object URL 泄漏
-- 参数快速变化导致旧任务覆盖新任务
+建议：
+
+1. 当前保留 `runtime` 布尔入口
+2. 下一阶段新增 `mode`
+3. static 路径继续存在
+4. 文档标清：
+   - 组件默认已可脱离 Vite
+   - 若追求构建期预生成，可继续选择 Vite 插件
+
+---
+
+## 风险与应对
+
+### 风险一：默认 runtime 带来首建成本
 
 应对：
 
-- 显式 `dispose`
-- 版本号或任务序列控制
-- `AbortController`
+- 继续保留 worker prewarm
+- 默认 `backend="auto"`
+- 提供 `mode="static"` 明确覆盖
 
-### 风险二：Wasm 引入后工程复杂度上升
-
-表现：
-
-- 构建流程复杂
-- 调试门槛提高
-- 包分发策略更复杂
+### 风险二：worker 装载改造导致跨 bundler 兼容问题
 
 应对：
 
-- 保持 TS backend 为默认 fallback
-- 将 Wasm 作为可选 backend
-- 独立 package 管理构建和发布
+- 先做最小改动方案
+- 保持 TS runtime 始终可回退
 
-### 风险三：真正瓶颈可能在 SVG filter
-
-表现：
-
-- 计算更快了，但页面仍不流畅
+### 风险三：static 与 runtime 双路径增加维护成本
 
 应对：
 
-- 在 Phase 0 和 Phase 3 就建立准确 profiling
-- 不把 Wasm 当成万能解
-- 只有在证据充分时才进入 WebGL
+- 将 static provider / runtime provider 抽象统一
+- 组件只消费解析后的 assets
 
-### 风险四：跨框架 API 发散
-
-表现：
-
-- React / Vue / Svelte 在 runtime mode 下行为不一致
+### 风险四：文档与实现不同步
 
 应对：
 
-- 共享 runtime 资产层
-- 共享参数与类型定义
-- 组件层只做最薄的适配
+- 每个阶段结束都同步更新：
+  - root README
+  - `README.zh-CN.md`
+  - framework README
+  - core README
 
-## 里程碑
+---
 
-### Milestone A
+## 验收标准
 
-- 完成性能基线
-- 形成 runtime API 设计文档
+当以下条件全部满足时，可认为“去除 Vite 强依赖”完成：
 
-### Milestone B
+1. React / Vue / Svelte 包的 `peerDependencies` 中不再要求 `@lollipopkit/liquid-glass-vite`
+2. 三个框架包在无 Vite 插件的宿主中可直接使用
+3. shared worker runtime 不再使用 `?worker`
+4. `@lollipopkit/liquid-glass-vite` 仍可作为 static 优化正常工作
+5. 文档明确说明：
+   - 默认不要求 Vite
+   - Vite 插件是可选优化
 
-- TS runtime assets 可用
-- demo 可实时调参
+---
 
-### Milestone C
+## 建议执行顺序
 
-- 三套框架组件支持 runtime mode
-- 引入 worker，主线程负担下降
+建议按以下顺序落地：
 
-### Milestone D
+1. 移除框架包 `peerDependencies["@lollipopkit/liquid-glass-vite"]`
+2. 更新包说明与安装文档
+3. 设计并接入统一 `mode`
+4. 抽象 static provider，减少组件直连 `virtual:` 模块
+5. 替换 `?worker` 装载方式
+6. 做无 Vite 宿主验证
+7. 最后再决定是否进一步弱化或拆分 `packages/vite`
 
-- Wasm backend 上线
-- 形成 TS / Wasm 自动选择策略
+---
 
-### Milestone E
+## 一句话总结
 
-- 明确是否需要 WebGL renderer
+目标不是“删除 Vite”，而是：
 
-## 优先级
-
-### P0
-
-- 建立 runtime API
-- 支持 demo 实时调参
-- 资源生命周期管理
-
-### P1
-
-- Worker 化
-- TS 内核优化
-- 组件双模式稳定
-
-### P2
-
-- Rust/Wasm backend
-- 对比基准与回归验证
-
-### P3
-
-- WebGL 可行性验证
-
-## 推荐执行顺序
-
-1. 完成 Phase 0 基线测试
-2. 完成 Phase 1 runtime API
-3. 完成 Phase 2 组件双模式接入
-4. 完成 Phase 3 TS 优化和 Worker 化
-5. 根据数据决定 Phase 4 Wasm
-6. 根据数据决定是否进入 Phase 5 WebGL
-
-## 最终建议
-
-当前项目的正确方向不是“立刻 GPU 化”，而是：
-
-1. 从静态资源库演进为支持 runtime mode 的组件库
-2. 先以 TS 打通运行时链路
-3. 再将最重的计算内核迁到 Rust/Wasm
-4. 只有在 SVG filter 成为明确瓶颈时才进入 WebGL
-
-简化表述如下：
-
-- 现在该做：runtime + worker + TS 优化
-- 接下来可能做：Rust/Wasm
-- 暂时不做：WebGPU 主路线
-- 未来视瓶颈决定：WebGL renderer
+**让 Vite 从必需前提变成可选优化，让框架组件默认以 runtime-first 方式工作，同时把 shared worker runtime 从 Vite 风格装载语法中解耦出来。**

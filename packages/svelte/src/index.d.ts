@@ -1,15 +1,21 @@
 import { SvelteComponent } from "svelte";
 export type {
+  CreateLiquidGlassWorkerOptions,
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterAssets,
   LiquidGlassFilterParamInput,
   LiquidGlassManagedRuntimeAssets,
   LiquidGlassRuntimeAssets,
   LiquidGlassRuntimeBackend,
   LiquidGlassRuntimeBackendPreference,
+  LiquidGlassStaticAssetKey,
+  LiquidGlassStaticAssetRegistry,
+  LiquidGlassWorkerFactory,
 } from "@lollipopkit/liquid-glass";
 export {
   canUseLiquidGlassWorkerRuntime,
+  configureLiquidGlassWorkerRuntime,
   createLiquidGlassRuntimeAssets,
   createManagedLiquidGlassRuntimeAssets,
   normalizeLiquidGlassFilterParams,
@@ -18,6 +24,14 @@ export {
   resolveLiquidGlassRuntimeBackend,
 } from "@lollipopkit/liquid-glass";
 
+export function configureLiquidGlassStaticAssets(
+  nextRegistry: LiquidGlassStaticAssetRegistry
+): void;
+export function getLiquidGlassStaticAssets(
+  key: LiquidGlassStaticAssetKey
+): LiquidGlassFilterAssets | null;
+export function resetLiquidGlassStaticAssets(): void;
+
 export interface LiquidSearchboxProps {
   value?: string;
   placeholder?: string;
@@ -25,6 +39,7 @@ export interface LiquidSearchboxProps {
   autocomplete?: string;
   inputClass?: string;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeParams?: Partial<
     Pick<
@@ -42,6 +57,7 @@ export interface LiquidSliderProps {
   step?: number;
   disabled?: boolean;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeParams?: Partial<
     Pick<
@@ -56,6 +72,7 @@ export interface LiquidSwitchProps {
   checked?: boolean;
   disabled?: boolean;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeParams?: Partial<
     Pick<
@@ -73,6 +90,7 @@ export interface LiquidMagnifyingGlassProps {
   initialY?: number;
   magnification?: number;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeParams?: Partial<
     Pick<
@@ -91,6 +109,7 @@ export interface LiquidParallaxHeroProps {
   lensSize?: number;
   parallaxSpeed?: number;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeParams?: Partial<
     Pick<

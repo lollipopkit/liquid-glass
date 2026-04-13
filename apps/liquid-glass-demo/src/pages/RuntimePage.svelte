@@ -9,9 +9,10 @@
       Browser-generated liquid glass playground
     </h1>
     <p class="page-copy max-w-3xl text-sm leading-7 sm:text-base">
-      This page isolates the runtime renderer from the static showcase. Use it
-      to stress parameter updates, inspect selective rerenders, and run the
-      browser-side timing probe without polluting the main landing page.
+      This page forces the runtime path and ignores the static registry used by
+      the main showcase. Use it to stress parameter updates, inspect selective
+      rerenders, and benchmark the browser-side renderer without the Vite
+      static optimization path in the way.
     </p>
   </section>
 

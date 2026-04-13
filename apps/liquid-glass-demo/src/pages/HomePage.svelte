@@ -29,27 +29,52 @@
     <h1 class="page-title max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
       Refractive UI studies rebuilt
     </h1>
+    <p class="page-copy max-w-3xl text-sm leading-7 sm:text-base">
+      This showcase route pre-registers Vite static assets through
+      <code>configureLiquidGlassStaticAssets()</code>, so the components render on the
+      static path by default. Open <code>/runtime</code> to inspect the same library on the
+      runtime-only path.
+    </p>
     <h2>
       <a style="color: #8b2252" href="https://kube.io/blog/liquid-glass-css-svg/">Original post</a>
     </h2>
   </section>
 
+  <section class="grid gap-4 md:grid-cols-2">
+    <article class="path-card">
+      <div class="path-kicker">Path A</div>
+      <h3 class="path-title">Static assets via Vite</h3>
+      <p class="path-copy">
+        Build-time PNG assets are registered once, and components can stay on
+        <code>mode="auto"</code> or <code>mode="static"</code>.
+      </p>
+    </article>
+    <article class="path-card">
+      <div class="path-kicker">Path B</div>
+      <h3 class="path-title">Runtime assets without Vite</h3>
+      <p class="path-copy">
+        The framework packages now fall back to runtime asset generation when
+        no static registry is configured, or when you force <code>mode="runtime"</code>.
+      </p>
+    </article>
+  </section>
+
   <section class="space-y-4">
-    <div class="section-title text-sm font-semibold">Searchbox</div>
+    <div class="section-title text-sm font-semibold">Searchbox · Static Path</div>
     <div class={paddedPanelClass}>
       <LiquidSearchbox bind:value={searchValue} placeholder="Search" />
     </div>
   </section>
 
   <section class="space-y-4">
-    <div class="section-title text-sm font-semibold">Slider</div>
+    <div class="section-title text-sm font-semibold">Slider · Static Path</div>
     <div class={panelClass}>
       <LiquidSlider bind:value={sliderValue} />
     </div>
   </section>
 
   <section class="space-y-4">
-    <div class="section-title text-sm font-semibold">Switch</div>
+    <div class="section-title text-sm font-semibold">Switch · Static Path</div>
     <div class={panelClass}>
       <LiquidSwitch bind:checked={switchChecked} />
     </div>
@@ -122,6 +147,50 @@
   .page-copy,
   .caption {
     color: var(--demo-muted);
+  }
+
+  .path-card {
+    border: 1px solid color-mix(in srgb, var(--demo-ink) 10%, transparent);
+    border-radius: 1.25rem;
+    padding: 1rem 1.1rem;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, white 72%, transparent),
+        color-mix(in srgb, white 42%, transparent)
+      );
+    backdrop-filter: blur(16px);
+  }
+
+  .path-kicker {
+    color: var(--demo-kicker);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .path-title {
+    margin-top: 0.45rem;
+    color: var(--demo-ink);
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .path-copy {
+    margin-top: 0.55rem;
+    color: var(--demo-muted);
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  .path-copy :global(code),
+  .page-copy :global(code) {
+    border-radius: 9999px;
+    padding: 0.14rem 0.5rem;
+    color: var(--demo-ink);
+    background: color-mix(in srgb, var(--demo-ink) 8%, white);
+    font-size: 0.85em;
   }
 
   .demo-panel {

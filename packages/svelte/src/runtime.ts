@@ -6,6 +6,7 @@ import {
   normalizeLiquidGlassFilterParams,
   resolveLiquidGlassRuntimeBackend,
   type CreateLiquidGlassRuntimeAssetsOptions,
+  type LiquidGlassAssetMode,
   type LiquidGlassFilterAssets,
   type LiquidGlassFilterParamInput,
   type LiquidGlassManagedRuntimeAssets,
@@ -31,6 +32,64 @@ export type LiquidGlassRuntimeStore = Readable<LiquidGlassRuntimeStoreState> & {
   updateInput: (patch: LiquidGlassFilterParamInput) => Promise<void>;
   updateOptions: (patch: CreateLiquidGlassRuntimeAssetsOptions) => Promise<void>;
 };
+
+const EMPTY_IMAGE_DATA_URL =
+  "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
+
+export function resolveLiquidGlassComponentMode(
+  mode: LiquidGlassAssetMode | undefined,
+  runtime: boolean | undefined,
+  hasStaticAssets = true
+): "runtime" | "static" {
+  if (mode === "runtime") {
+    return "runtime";
+  }
+
+  if (mode === "static") {
+    return hasStaticAssets ? "static" : "runtime";
+  }
+
+  if (runtime) {
+    return "runtime";
+  }
+
+  return hasStaticAssets ? "static" : "runtime";
+}
+
+export function resolveLiquidGlassComponentAssets(
+  mode: "runtime" | "static",
+  runtimeAssets: LiquidGlassFilterAssets | null,
+  staticAssets: LiquidGlassFilterAssets | null,
+  fallbackInput: LiquidGlassFilterParamInput = {}
+): LiquidGlassFilterAssets {
+  if (mode === "runtime" && runtimeAssets) {
+    return runtimeAssets;
+  }
+
+  if (mode === "static" && staticAssets) {
+    return staticAssets;
+  }
+
+  if (mode === "runtime" && staticAssets) {
+    return staticAssets;
+  }
+
+  if (runtimeAssets) {
+    return runtimeAssets;
+  }
+
+  const params = normalizeLiquidGlassFilterParams(fallbackInput);
+  return {
+    displacementUrl: EMPTY_IMAGE_DATA_URL,
+    height: params.height,
+    magnify: params.magnify,
+    magnifyingUrl: params.magnify ? EMPTY_IMAGE_DATA_URL : undefined,
+    maxDisplacement: 0,
+    params,
+    specularUrl: EMPTY_IMAGE_DATA_URL,
+    width: params.width,
+  };
+}
 
 const INITIAL_STATE: LiquidGlassRuntimeStoreState = {
   assets: null,

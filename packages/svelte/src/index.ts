@@ -26,16 +26,22 @@ function ensureComponentStyles() {
 ensureComponentStyles();
 
 export type {
+  CreateLiquidGlassWorkerOptions,
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterAssets,
   LiquidGlassFilterParamInput,
   LiquidGlassManagedRuntimeAssets,
   LiquidGlassRuntimeAssets,
   LiquidGlassRuntimeBackend,
   LiquidGlassRuntimeBackendPreference,
+  LiquidGlassStaticAssetKey,
+  LiquidGlassStaticAssetRegistry,
+  LiquidGlassWorkerFactory,
 } from "@lollipopkit/liquid-glass";
 export {
   canUseLiquidGlassWorkerRuntime,
+  configureLiquidGlassWorkerRuntime,
   createLiquidGlassRuntimeAssets,
   createManagedLiquidGlassRuntimeAssets,
   normalizeLiquidGlassFilterParams,
@@ -43,6 +49,11 @@ export {
   primeLiquidGlassWorkerRuntime,
   resolveLiquidGlassRuntimeBackend,
 } from "@lollipopkit/liquid-glass";
+export {
+  configureLiquidGlassStaticAssets,
+  getLiquidGlassStaticAssets,
+  resetLiquidGlassStaticAssets,
+} from "./staticAssets";
 export { default as LiquidSearchbox } from "./components/LiquidSearchbox.svelte";
 export { default as LiquidSlider } from "./components/LiquidSlider.svelte";
 export { default as LiquidSwitch } from "./components/LiquidSwitch.svelte";

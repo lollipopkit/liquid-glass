@@ -10,9 +10,9 @@ import {
   watchEffect,
   type PropType,
 } from "vue";
-import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
 import type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterParamInput,
 } from "@lollipopkit/liquid-glass";
 
@@ -25,7 +25,12 @@ import {
   useControllableNumber,
   useFilterId,
 } from "../shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidSliderRuntimeParams = Partial<
   Pick<
@@ -72,6 +77,10 @@ export const LiquidSlider = defineComponent({
       type: Boolean,
       default: false,
     },
+    mode: {
+      type: String as PropType<LiquidGlassAssetMode | undefined>,
+      default: undefined,
+    },
     runtime: {
       type: Boolean,
       default: false,
@@ -96,14 +105,19 @@ export const LiquidSlider = defineComponent({
       clamp(props.defaultValue ?? props.min, props.min, safeMax),
       emit
     );
+    const staticAssets = getLiquidGlassStaticAssets("slider");
+    const resolvedMode = computed(() =>
+      resolveLiquidGlassComponentMode(props.mode, props.runtime, Boolean(staticAssets))
+    );
+    const mergedRuntimeInput = computed(() => ({
+      ...SLIDER_RUNTIME_INPUT,
+      ...(props.runtimeParams ?? {}),
+    }));
     const runtimeState = useLiquidGlassRuntimeAssets(
-      computed(() => ({
-        ...SLIDER_RUNTIME_INPUT,
-        ...(props.runtimeParams ?? {}),
-      })),
+      mergedRuntimeInput,
       computed(() => ({
         ...(props.runtimeOptions ?? {}),
-        enabled: props.runtime,
+        enabled: resolvedMode.value === "runtime",
       }))
     );
     const activeAmount = useAnimatedNumber(0, {
@@ -159,10 +173,12 @@ export const LiquidSlider = defineComponent({
         ? "rgba(255,255,255,0.2)"
         : `rgba(255,255,255,${mix(1, 0.1, activeAmount.value.value)})`;
       const thumbShadow = "0 3px 14px rgba(0,0,0,0.1)";
-      const filterAssets =
-        props.runtime && runtimeState.assets.value
-          ? runtimeState.assets.value
-          : sliderAssets;
+      const filterAssets = resolveLiquidGlassComponentAssets(
+        resolvedMode.value,
+        runtimeState.assets.value,
+        staticAssets,
+        mergedRuntimeInput.value
+      );
 
       return h(
         "div",

@@ -2,19 +2,22 @@
   import { createEventDispatcher, onDestroy, onMount } from "svelte";
   import type {
     CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassAssetMode,
     LiquidGlassFilterParamInput,
   } from "@lollipopkit/liquid-glass";
-  import magnifierAssets from "virtual:liquidGlassFilterAssets?width=210&height=150&radius=75&bezelWidth=25&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
   import {
     createLiquidGlassRuntimeStore,
+    resolveLiquidGlassComponentAssets,
+    resolveLiquidGlassComponentMode,
     type LiquidGlassRuntimeStore,
     type LiquidGlassRuntimeStoreState,
   } from "../runtime";
+  import { getLiquidGlassStaticAssets } from "../staticAssets";
   import { clamp, createFilterId, createPhysicsSpring } from "../shared";
 
-  export type LiquidMagnifyingGlassRuntimeParams = Partial<
+  type LiquidMagnifyingGlassRuntimeParams = Partial<
     Pick<
       LiquidGlassFilterParamInput,
       "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
@@ -27,6 +30,7 @@
   export let initialY = 24;
   export let magnification = 24;
   export let className = "";
+  export let mode: LiquidGlassAssetMode | undefined = undefined;
   export let runtime = false;
   export let runtimeParams: LiquidMagnifyingGlassRuntimeParams = {};
   export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
@@ -207,7 +211,7 @@
   });
 
   $: mergedRuntimeInput = {
-    bezelType: "convex_squircle",
+    bezelType: "convex_squircle" as const,
     bezelWidth: 25,
     glassThickness: 110,
     height: lensHeight,
@@ -217,7 +221,9 @@
     width: lensWidth,
     ...runtimeParams,
   };
-  $: if (runtime) {
+  const staticAssets = getLiquidGlassStaticAssets("magnifier");
+  $: resolvedMode = resolveLiquidGlassComponentMode(mode, runtime, Boolean(staticAssets));
+  $: if (resolvedMode === "runtime") {
     if (!runtimeStore) {
       runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
       unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
@@ -242,7 +248,12 @@
   $: insetShadowAlpha.setTarget(isDragging ? 0.27 : 0.2);
   $: shadowBlur.setTarget(isDragging ? 24 : 9);
   $: boxShadow = `${$shadowSx}px ${$shadowSy}px ${$shadowBlur}px rgba(0,0,0,${$shadowAlpha}), inset ${$shadowSx / 2}px ${$shadowSy / 2}px 24px rgba(0,0,0,${$insetShadowAlpha}), inset ${-$shadowSx / 2}px ${-$shadowSy / 2}px 24px rgba(255,255,255,${$insetShadowAlpha})`;
-  $: filterAssets = runtime && runtimeState.assets ? runtimeState.assets : magnifierAssets;
+  $: filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 </script>
 
 <svelte:window on:resize={updateSize} on:pointermove={handlePointerMove} on:pointerup={handlePointerUp} on:pointercancel={handlePointerUp} />

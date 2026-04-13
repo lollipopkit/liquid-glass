@@ -2,19 +2,22 @@
   import { onDestroy, onMount } from "svelte";
   import type {
     CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassAssetMode,
     LiquidGlassFilterParamInput,
   } from "@lollipopkit/liquid-glass";
-  import heroAssets from "virtual:liquidGlassFilterAssets?width=150&height=150&radius=75&bezelWidth=40&glassThickness=120&refractiveIndex=1.5";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
   import {
     createLiquidGlassRuntimeStore,
+    resolveLiquidGlassComponentAssets,
+    resolveLiquidGlassComponentMode,
     type LiquidGlassRuntimeStore,
     type LiquidGlassRuntimeStoreState,
   } from "../runtime";
+  import { getLiquidGlassStaticAssets } from "../staticAssets";
   import { createAnimatedNumber, createFilterId, toCssSize } from "../shared";
 
-  export type LiquidParallaxHeroRuntimeParams = Partial<
+  type LiquidParallaxHeroRuntimeParams = Partial<
     Pick<
       LiquidGlassFilterParamInput,
       "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
@@ -43,6 +46,7 @@
   export let lensSize = 200;
   export let parallaxSpeed = -0.25;
   export let className = "";
+  export let mode: LiquidGlassAssetMode | undefined = undefined;
   export let runtime = false;
   export let runtimeParams: LiquidParallaxHeroRuntimeParams = {};
   export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
@@ -83,7 +87,9 @@
     ...HERO_RUNTIME_INPUT,
     ...runtimeParams,
   };
-  $: if (runtime) {
+  const staticAssets = getLiquidGlassStaticAssets("hero");
+  $: resolvedMode = resolveLiquidGlassComponentMode(mode, runtime, Boolean(staticAssets));
+  $: if (resolvedMode === "runtime") {
     if (!runtimeStore) {
       runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
       unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
@@ -102,7 +108,12 @@
   $: backgroundOffset = Math.min(800, $progress) * parallaxSpeed;
   $: backgroundY = -60 + backgroundOffset;
   $: focalY = 13 + backgroundOffset * 0.75;
-  $: filterAssets = runtime && runtimeState.assets ? runtimeState.assets : heroAssets;
+  $: filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 </script>
 
 <svelte:window on:scroll={scheduleUpdate} on:resize={scheduleUpdate} />

@@ -10,9 +10,9 @@ import {
   watchEffect,
   type PropType,
 } from "vue";
-import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&radius=46&bezelWidth=19&glassThickness=47&refractiveIndex=1.5&bezelType=lip";
 import type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterParamInput,
 } from "@lollipopkit/liquid-glass";
 
@@ -25,7 +25,12 @@ import {
   useControllableBoolean,
   useFilterId,
 } from "../shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidSwitchRuntimeParams = Partial<
   Pick<
@@ -68,6 +73,10 @@ export const LiquidSwitch = defineComponent({
       type: Boolean,
       default: false,
     },
+    mode: {
+      type: String as PropType<LiquidGlassAssetMode | undefined>,
+      default: undefined,
+    },
     runtime: {
       type: Boolean,
       default: false,
@@ -100,14 +109,19 @@ export const LiquidSwitch = defineComponent({
       props.defaultValue,
       emit
     );
+    const staticAssets = getLiquidGlassStaticAssets("switch");
+    const resolvedMode = computed(() =>
+      resolveLiquidGlassComponentMode(props.mode, props.runtime, Boolean(staticAssets))
+    );
+    const mergedRuntimeInput = computed(() => ({
+      ...SWITCH_RUNTIME_INPUT,
+      ...(props.runtimeParams ?? {}),
+    }));
     const runtimeState = useLiquidGlassRuntimeAssets(
-      computed(() => ({
-        ...SWITCH_RUNTIME_INPUT,
-        ...(props.runtimeParams ?? {}),
-      })),
+      mergedRuntimeInput,
       computed(() => ({
         ...(props.runtimeOptions ?? {}),
-        enabled: props.runtime,
+        enabled: resolvedMode.value === "runtime",
       }))
     );
     const activeAmount = useAnimatedNumber(0, {
@@ -219,10 +233,12 @@ export const LiquidSwitch = defineComponent({
         activeAmount.value.value > 0.5
           ? "0 4px 22px rgba(0,0,0,0.1), inset 2px 7px 24px rgba(0,0,0,0.09), inset -2px -7px 24px rgba(255,255,255,0.09)"
           : "0 4px 22px rgba(0,0,0,0.1)";
-      const filterAssets =
-        props.runtime && runtimeState.assets.value
-          ? runtimeState.assets.value
-          : switchAssets;
+      const filterAssets = resolveLiquidGlassComponentAssets(
+        resolvedMode.value,
+        runtimeState.assets.value,
+        staticAssets,
+        mergedRuntimeInput.value
+      );
 
       return h(
         "label",

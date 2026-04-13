@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&radius=46&bezelWidth=19&glassThickness=47&refractiveIndex=1.5&bezelType=lip";
 import type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterParamInput,
 } from "@lollipopkit/liquid-glass";
 
@@ -14,7 +14,12 @@ import {
   useControllableValue,
   useFilterId,
 } from "./shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidSwitchRuntimeParams = Partial<
   Pick<
@@ -31,6 +36,7 @@ export type LiquidSwitchProps = Omit<
   defaultChecked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeOptions?: CreateLiquidGlassRuntimeAssetsOptions;
   runtimeParams?: LiquidSwitchRuntimeParams;
@@ -64,6 +70,7 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
   disabled = false,
   onChange,
   onCheckedChange,
+  mode,
   runtime = false,
   runtimeOptions,
   runtimeParams,
@@ -85,14 +92,21 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
     defaultChecked,
     onCheckedChange
   );
+  const mergedRuntimeInput = {
+    ...SWITCH_RUNTIME_INPUT,
+    ...runtimeParams,
+  };
+  const staticAssets = getLiquidGlassStaticAssets("switch");
+  const resolvedMode = resolveLiquidGlassComponentMode(
+    mode,
+    runtime,
+    Boolean(staticAssets)
+  );
   const runtimeState = useLiquidGlassRuntimeAssets(
-    {
-      ...SWITCH_RUNTIME_INPUT,
-      ...runtimeParams,
-    },
+    mergedRuntimeInput,
     {
       ...runtimeOptions,
-      enabled: runtime,
+      enabled: resolvedMode === "runtime",
     }
   );
   const active = !disabled && pressed;
@@ -202,7 +216,12 @@ export const LiquidSwitch: React.FC<LiquidSwitchProps> = ({
     activeAmount.value > 0.5
       ? "0 4px 22px rgba(0,0,0,0.1), inset 2px 7px 24px rgba(0,0,0,0.09), inset -2px -7px 24px rgba(255,255,255,0.09)"
       : "0 4px 22px rgba(0,0,0,0.1)";
-  const filterAssets = runtime && runtimeState.assets ? runtimeState.assets : switchAssets;
+  const filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 
   return (
     <label

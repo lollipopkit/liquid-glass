@@ -1,13 +1,18 @@
 import React, { useEffect, useRef } from "react";
-import heroAssets from "virtual:liquidGlassFilterAssets?width=150&height=150&radius=75&bezelWidth=40&glassThickness=120&refractiveIndex=1.5";
 import type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterParamInput,
 } from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import { cn, toCssSize, useAnimatedNumber, useFilterId } from "./shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidParallaxHeroRuntimeParams = Partial<
   Pick<
@@ -34,6 +39,7 @@ export type LiquidParallaxHeroProps = {
   lensSize?: number;
   parallaxSpeed?: number;
   className?: string;
+  mode?: LiquidGlassAssetMode;
   runtime?: boolean;
   runtimeOptions?: CreateLiquidGlassRuntimeAssetsOptions;
   runtimeParams?: LiquidParallaxHeroRuntimeParams;
@@ -47,6 +53,7 @@ export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
   imageSrc,
   lensSize = 200,
   parallaxSpeed = -0.25,
+  mode,
   runtime = false,
   runtimeOptions,
   runtimeParams,
@@ -54,14 +61,21 @@ export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
   const filterId = useFilterId("liquid-parallax-hero");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef(0);
+  const mergedRuntimeInput = {
+    ...HERO_RUNTIME_INPUT,
+    ...runtimeParams,
+  };
+  const staticAssets = getLiquidGlassStaticAssets("hero");
+  const resolvedMode = resolveLiquidGlassComponentMode(
+    mode,
+    runtime,
+    Boolean(staticAssets)
+  );
   const runtimeState = useLiquidGlassRuntimeAssets(
-    {
-      ...HERO_RUNTIME_INPUT,
-      ...runtimeParams,
-    },
+    mergedRuntimeInput,
     {
       ...runtimeOptions,
-      enabled: runtime,
+      enabled: resolvedMode === "runtime",
     }
   );
   const progress = useAnimatedNumber(0, {
@@ -72,7 +86,12 @@ export const LiquidParallaxHero: React.FC<LiquidParallaxHeroProps> = ({
   const backgroundOffset = Math.min(800, progress.value) * parallaxSpeed;
   const backgroundY = -60 + backgroundOffset;
   const focalY = 13 + backgroundOffset * 0.75;
-  const filterAssets = runtime && runtimeState.assets ? runtimeState.assets : heroAssets;
+  const filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 
   useEffect(() => {
     const update = () => {

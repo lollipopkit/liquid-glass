@@ -2,19 +2,22 @@
   import { createEventDispatcher, onDestroy } from "svelte";
   import type {
     CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassAssetMode,
     LiquidGlassFilterParamInput,
   } from "@lollipopkit/liquid-glass";
-  import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&radius=46&bezelWidth=19&glassThickness=47&refractiveIndex=1.5&bezelType=lip";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
   import {
     createLiquidGlassRuntimeStore,
+    resolveLiquidGlassComponentAssets,
+    resolveLiquidGlassComponentMode,
     type LiquidGlassRuntimeStore,
     type LiquidGlassRuntimeStoreState,
   } from "../runtime";
+  import { getLiquidGlassStaticAssets } from "../staticAssets";
   import { clamp, createAnimatedNumber, createFilterId, mix } from "../shared";
 
-  export type LiquidSwitchRuntimeParams = Partial<
+  type LiquidSwitchRuntimeParams = Partial<
     Pick<
       LiquidGlassFilterParamInput,
       "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
@@ -24,6 +27,7 @@
   export let checked = false;
   export let disabled = false;
   export let className = "";
+  export let mode: LiquidGlassAssetMode | undefined = undefined;
   export let runtime = false;
   export let runtimeParams: LiquidSwitchRuntimeParams = {};
   export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
@@ -107,7 +111,9 @@
     ...SWITCH_RUNTIME_INPUT,
     ...runtimeParams,
   };
-  $: if (runtime) {
+  const staticAssets = getLiquidGlassStaticAssets("switch");
+  $: resolvedMode = resolveLiquidGlassComponentMode(mode, runtime, Boolean(staticAssets));
+  $: if (resolvedMode === "runtime") {
     if (!runtimeStore) {
       runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
       unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
@@ -123,7 +129,12 @@
     runtimeStore = null;
     runtimeState = INITIAL_RUNTIME_STATE;
   }
-  $: filterAssets = runtime && runtimeState.assets ? runtimeState.assets : switchAssets;
+  $: filterAssets = resolveLiquidGlassComponentAssets(
+    resolvedMode,
+    runtimeState.assets,
+    staticAssets,
+    mergedRuntimeInput
+  );
 
   onDestroy(() => {
     activeAmount.destroy();

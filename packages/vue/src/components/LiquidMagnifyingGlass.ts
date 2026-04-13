@@ -9,9 +9,9 @@ import {
   watchEffect,
   type PropType,
 } from "vue";
-import magnifierAssets from "virtual:liquidGlassFilterAssets?width=210&height=150&radius=75&bezelWidth=25&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
 import type {
   CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassAssetMode,
   LiquidGlassFilterParamInput,
 } from "@lollipopkit/liquid-glass";
 
@@ -24,7 +24,12 @@ import {
   useElementSize,
   useFilterId,
 } from "../shared";
-import { useLiquidGlassRuntimeAssets } from "../runtime";
+import {
+  resolveLiquidGlassComponentAssets,
+  resolveLiquidGlassComponentMode,
+  useLiquidGlassRuntimeAssets,
+} from "../runtime";
+import { getLiquidGlassStaticAssets } from "../staticAssets";
 
 export type LiquidMagnifyingGlassRuntimeParams = Partial<
   Pick<
@@ -58,6 +63,10 @@ export const LiquidMagnifyingGlass = defineComponent({
       type: Number,
       default: 24,
     },
+    mode: {
+      type: String as PropType<LiquidGlassAssetMode | undefined>,
+      default: undefined,
+    },
     runtime: {
       type: Boolean,
       default: false,
@@ -76,21 +85,26 @@ export const LiquidMagnifyingGlass = defineComponent({
     const specularSaturation = 9;
     const attrs = useAttrs();
     const filterId = useFilterId("liquid-magnifier");
+    const staticAssets = getLiquidGlassStaticAssets("magnifier");
+    const resolvedMode = computed(() =>
+      resolveLiquidGlassComponentMode(props.mode, props.runtime, Boolean(staticAssets))
+    );
+    const mergedRuntimeInput = computed(() => ({
+      bezelType: "convex_squircle" as const,
+      bezelWidth: 25,
+      glassThickness: 110,
+      height: props.lensHeight,
+      magnify: true,
+      radius: Math.floor(props.lensHeight / 2),
+      refractiveIndex: 1.5,
+      width: props.lensWidth,
+      ...(props.runtimeParams ?? {}),
+    }));
     const runtimeState = useLiquidGlassRuntimeAssets(
-      computed(() => ({
-        bezelType: "convex_squircle",
-        bezelWidth: 25,
-        glassThickness: 110,
-        height: props.lensHeight,
-        magnify: true,
-        radius: Math.floor(props.lensHeight / 2),
-        refractiveIndex: 1.5,
-        width: props.lensWidth,
-        ...(props.runtimeParams ?? {}),
-      })),
+      mergedRuntimeInput,
       computed(() => ({
         ...(props.runtimeOptions ?? {}),
-        enabled: props.runtime,
+        enabled: resolvedMode.value === "runtime",
       }))
     );
     const { elementRef, size } = useElementSize<HTMLDivElement>();
@@ -252,10 +266,12 @@ export const LiquidMagnifyingGlass = defineComponent({
       const insetShadowAlpha = mix(0.2, 0.27, activeValue);
       const shadowBlur = mix(9, 24, activeValue);
       const boxShadow = `${shadowSx}px ${shadowSy}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}), inset ${shadowSx / 2}px ${shadowSy / 2}px 24px rgba(0,0,0,${insetShadowAlpha}), inset ${-shadowSx / 2}px ${-shadowSy / 2}px 24px rgba(255,255,255,${insetShadowAlpha})`;
-      const filterAssets =
-        props.runtime && runtimeState.assets.value
-          ? runtimeState.assets.value
-          : magnifierAssets;
+      const filterAssets = resolveLiquidGlassComponentAssets(
+        resolvedMode.value,
+        runtimeState.assets.value,
+        staticAssets,
+        mergedRuntimeInput.value
+      );
 
       return h(
         "div",
