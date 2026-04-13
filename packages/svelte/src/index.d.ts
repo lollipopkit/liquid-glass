@@ -91,6 +91,14 @@ export interface LiquidParallaxHeroProps {
   lensSize?: number;
   parallaxSpeed?: number;
   className?: string;
+  runtime?: boolean;
+  runtimeParams?: Partial<
+    Pick<
+      LiquidGlassFilterParamInput,
+      "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+    >
+  >;
+  runtimeOptions?: CreateLiquidGlassRuntimeAssetsOptions;
 }
 
 export interface LiquidGlassRuntimeStoreState {

@@ -1,9 +1,40 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
+  import type {
+    CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassFilterParamInput,
+  } from "@lollipopkit/liquid-glass";
   import heroAssets from "virtual:liquidGlassFilterAssets?width=150&height=150&radius=75&bezelWidth=40&glassThickness=120&refractiveIndex=1.5";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
+  import {
+    createLiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStoreState,
+  } from "../runtime";
   import { createAnimatedNumber, createFilterId, toCssSize } from "../shared";
+
+  export type LiquidParallaxHeroRuntimeParams = Partial<
+    Pick<
+      LiquidGlassFilterParamInput,
+      "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+    >
+  >;
+
+  const HERO_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+    bezelWidth: 40,
+    glassThickness: 120,
+    height: 150,
+    radius: 75,
+    refractiveIndex: 1.5,
+    width: 150,
+  };
+  const INITIAL_RUNTIME_STATE: LiquidGlassRuntimeStoreState = {
+    assets: null,
+    backend: null,
+    error: null,
+    isPending: false,
+  };
 
   export let imageSrc: string;
   export let alt: string;
@@ -12,10 +43,16 @@
   export let lensSize = 200;
   export let parallaxSpeed = -0.25;
   export let className = "";
+  export let runtime = false;
+  export let runtimeParams: LiquidParallaxHeroRuntimeParams = {};
+  export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
 
   const filterId = createFilterId("liquid-parallax-hero");
 
   let measureFrame = 0;
+  let runtimeStore: LiquidGlassRuntimeStore | null = null;
+  let runtimeState: LiquidGlassRuntimeStoreState = INITIAL_RUNTIME_STATE;
+  let unsubscribeRuntimeStore: (() => void) | undefined;
   const progress = createAnimatedNumber(0, {
     stiffness: 0.12,
     damping: 0.82,
@@ -38,11 +75,34 @@
       window.cancelAnimationFrame(measureFrame);
     }
     progress.destroy();
+    unsubscribeRuntimeStore?.();
+    runtimeStore?.dispose();
   });
 
+  $: mergedRuntimeInput = {
+    ...HERO_RUNTIME_INPUT,
+    ...runtimeParams,
+  };
+  $: if (runtime) {
+    if (!runtimeStore) {
+      runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
+      unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
+        runtimeState = value;
+      });
+    } else {
+      void runtimeStore.setConfig(mergedRuntimeInput, runtimeOptions);
+    }
+  } else {
+    unsubscribeRuntimeStore?.();
+    unsubscribeRuntimeStore = undefined;
+    runtimeStore?.dispose();
+    runtimeStore = null;
+    runtimeState = INITIAL_RUNTIME_STATE;
+  }
   $: backgroundOffset = Math.min(800, $progress) * parallaxSpeed;
   $: backgroundY = -60 + backgroundOffset;
   $: focalY = 13 + backgroundOffset * 0.75;
+  $: filterAssets = runtime && runtimeState.assets ? runtimeState.assets : heroAssets;
 </script>
 
 <svelte:window on:scroll={scheduleUpdate} on:resize={scheduleUpdate} />
@@ -64,9 +124,9 @@
   >
     <LiquidGlassFilter
       id={filterId}
-      assets={heroAssets}
-      width={150}
-      height={150}
+      assets={filterAssets}
+      width={filterAssets.width}
+      height={filterAssets.height}
       specularOpacity={0.2}
       specularSaturation={6}
       withSvgWrapper={false}

@@ -1,8 +1,38 @@
-import { defineComponent, h, onMounted, onUnmounted, ref, useAttrs } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  onMounted,
+  onUnmounted,
+  ref,
+  useAttrs,
+  type PropType,
+} from "vue";
 import heroAssets from "virtual:liquidGlassFilterAssets?width=150&height=150&radius=75&bezelWidth=40&glassThickness=120&refractiveIndex=1.5";
+import type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassFilterParamInput,
+} from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import { cn, toCssSize, useAnimatedNumber, useFilterId } from "../shared";
+import { useLiquidGlassRuntimeAssets } from "../runtime";
+
+export type LiquidParallaxHeroRuntimeParams = Partial<
+  Pick<
+    LiquidGlassFilterParamInput,
+    "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+  >
+>;
+
+const HERO_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+  bezelWidth: 40,
+  glassThickness: 120,
+  height: 150,
+  radius: 75,
+  refractiveIndex: 1.5,
+  width: 150,
+};
 
 export const LiquidParallaxHero = defineComponent({
   name: "LiquidParallaxHero",
@@ -26,11 +56,33 @@ export const LiquidParallaxHero = defineComponent({
       type: Number,
       default: -0.25,
     },
+    runtime: {
+      type: Boolean,
+      default: false,
+    },
+    runtimeOptions: {
+      type: Object as PropType<CreateLiquidGlassRuntimeAssetsOptions | undefined>,
+      default: undefined,
+    },
+    runtimeParams: {
+      type: Object as PropType<LiquidParallaxHeroRuntimeParams | undefined>,
+      default: undefined,
+    },
   },
   setup(props, { slots }) {
     const attrs = useAttrs();
     const filterId = useFilterId("liquid-parallax-hero");
     const containerRef = ref<HTMLDivElement | null>(null);
+    const runtimeState = useLiquidGlassRuntimeAssets(
+      computed(() => ({
+        ...HERO_RUNTIME_INPUT,
+        ...(props.runtimeParams ?? {}),
+      })),
+      computed(() => ({
+        ...(props.runtimeOptions ?? {}),
+        enabled: props.runtime,
+      }))
+    );
     const progress = useAnimatedNumber(0, {
       stiffness: 0.12,
       damping: 0.82,
@@ -71,6 +123,10 @@ export const LiquidParallaxHero = defineComponent({
         Math.min(800, progress.value.value) * props.parallaxSpeed;
       const backgroundY = -60 + backgroundOffset;
       const focalY = 13 + backgroundOffset * 0.75;
+      const filterAssets =
+        props.runtime && runtimeState.assets.value
+          ? runtimeState.assets.value
+          : heroAssets;
 
       return h("div", {}, [
         h(
@@ -107,9 +163,9 @@ export const LiquidParallaxHero = defineComponent({
               [
                 h(LiquidGlassFilter, {
                   id: filterId,
-                  assets: heroAssets,
-                  width: 150,
-                  height: 150,
+                  assets: filterAssets,
+                  width: filterAssets.width,
+                  height: filterAssets.height,
                   specularOpacity: 0.2,
                   specularSaturation: 6,
                   withSvgWrapper: false,

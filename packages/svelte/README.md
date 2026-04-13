@@ -51,6 +51,7 @@ const runtime = createLiquidGlassRuntimeStore(
 ```
 
 The same `runtime`, `runtimeParams`, and `runtimeOptions` props are also
-available on `LiquidSlider`, `LiquidSwitch`, and `LiquidMagnifyingGlass`.
+available on `LiquidSlider`, `LiquidSwitch`, `LiquidMagnifyingGlass`, and
+`LiquidParallaxHero`.
 
 See the root repository README for Vite setup and examples.
