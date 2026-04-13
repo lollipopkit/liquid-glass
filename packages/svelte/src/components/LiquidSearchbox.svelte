@@ -1,10 +1,43 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy } from "svelte";
   import type { HTMLInputAttributes } from "svelte/elements";
+  import type {
+    CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassFilterAssets,
+    LiquidGlassFilterParamInput,
+  } from "@lollipopkit/liquid-glass";
   import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
+  import {
+    createLiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStoreState,
+  } from "../runtime";
   import { createAnimatedNumber, createFilterId, mix } from "../shared";
+
+  export type LiquidSearchboxRuntimeParams = Partial<
+    Pick<
+      LiquidGlassFilterParamInput,
+      "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+    >
+  >;
+
+  const SEARCHBOX_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+    bezelType: "convex_squircle",
+    bezelWidth: 27,
+    glassThickness: 70,
+    height: 56,
+    radius: 28,
+    refractiveIndex: 1.5,
+    width: 420,
+  };
+  const INITIAL_RUNTIME_STATE: LiquidGlassRuntimeStoreState = {
+    assets: null,
+    backend: null,
+    error: null,
+    isPending: false,
+  };
 
   export let value = "";
   export let placeholder = "Search";
@@ -12,6 +45,9 @@
   export let autocomplete: HTMLInputAttributes["autocomplete"] = "off";
   export let inputClass = "";
   export let className = "";
+  export let runtime = false;
+  export let runtimeParams: LiquidSearchboxRuntimeParams = {};
+  export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
 
   const dispatch = createEventDispatcher();
   const filterId = createFilterId("liquid-searchbox");
@@ -19,6 +55,9 @@
   let focused = false;
   let pressed = false;
   let inputEl: HTMLInputElement;
+  let runtimeStore: LiquidGlassRuntimeStore | null = null;
+  let runtimeState: LiquidGlassRuntimeStoreState = INITIAL_RUNTIME_STATE;
+  let unsubscribeRuntimeStore: (() => void) | undefined;
   const focusAmount = createAnimatedNumber(0, {
     stiffness: 0.18,
     damping: 0.8,
@@ -35,11 +74,36 @@
     dispatch("change", event);
   }
 
+  function disposeRuntimeStore() {
+    unsubscribeRuntimeStore?.();
+    unsubscribeRuntimeStore = undefined;
+    runtimeStore?.dispose();
+    runtimeStore = null;
+    runtimeState = INITIAL_RUNTIME_STATE;
+  }
+
   onDestroy(() => {
     focusAmount.destroy();
     pressAmount.destroy();
+    disposeRuntimeStore();
   });
 
+  $: mergedRuntimeInput = {
+    ...SEARCHBOX_RUNTIME_INPUT,
+    ...runtimeParams,
+  };
+  $: if (runtime) {
+    if (!runtimeStore) {
+      runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
+      unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
+        runtimeState = value;
+      });
+    } else {
+      void runtimeStore.setConfig(mergedRuntimeInput, runtimeOptions);
+    }
+  } else {
+    disposeRuntimeStore();
+  }
   $: focusAmount.setTarget(focused ? 1 : 0);
   $: pressAmount.setTarget(pressed ? 1 : 0);
   $: backgroundOpacity = Math.max(
@@ -52,6 +116,8 @@
   $: specularOpacity = 0.2;
   $: specularSaturation = 4;
   $: boxShadow = "0 4px 16px rgba(0, 0, 0, 0.16)";
+  $: filterAssets =
+    runtime && runtimeState.assets ? runtimeState.assets : searchboxAssets;
 </script>
 
 <svelte:window on:pointerup={() => (pressed = false)} on:pointercancel={() => (pressed = false)} />
@@ -74,9 +140,9 @@
 >
   <LiquidGlassFilter
     id={filterId}
-    assets={searchboxAssets}
-    width={420}
-    height={56}
+    assets={filterAssets}
+    width={filterAssets.width}
+    height={filterAssets.height}
     {blur}
     {scaleRatio}
     {specularOpacity}

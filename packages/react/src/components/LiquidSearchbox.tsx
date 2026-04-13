@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
+import type { LiquidGlassFilterParamInput } from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -9,6 +10,27 @@ import {
   useControllableValue,
   useFilterId,
 } from "./shared";
+import {
+  useLiquidGlassRuntimeAssets,
+  type UseLiquidGlassRuntimeAssetsOptions,
+} from "../runtime";
+
+export type LiquidSearchboxRuntimeParams = Partial<
+  Pick<
+    LiquidGlassFilterParamInput,
+    "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+  >
+>;
+
+const SEARCHBOX_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+  bezelType: "convex_squircle",
+  bezelWidth: 27,
+  glassThickness: 70,
+  height: 56,
+  radius: 28,
+  refractiveIndex: 1.5,
+  width: 420,
+};
 
 export type LiquidSearchboxProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -19,6 +41,9 @@ export type LiquidSearchboxProps = Omit<
   onValueChange?: (value: string) => void;
   className?: string;
   inputClassName?: string;
+  runtime?: boolean;
+  runtimeOptions?: UseLiquidGlassRuntimeAssetsOptions;
+  runtimeParams?: LiquidSearchboxRuntimeParams;
 };
 
 export const LiquidSearchbox: React.FC<LiquidSearchboxProps> = ({
@@ -30,6 +55,9 @@ export const LiquidSearchbox: React.FC<LiquidSearchboxProps> = ({
   onChange,
   onValueChange,
   placeholder = "Search",
+  runtime = false,
+  runtimeOptions,
+  runtimeParams,
   value: controlledValue,
   ...inputProps
 }) => {
@@ -41,6 +69,16 @@ export const LiquidSearchbox: React.FC<LiquidSearchboxProps> = ({
     controlledValue,
     defaultValue,
     onValueChange
+  );
+  const runtimeState = useLiquidGlassRuntimeAssets(
+    {
+      ...SEARCHBOX_RUNTIME_INPUT,
+      ...runtimeParams,
+    },
+    {
+      ...runtimeOptions,
+      enabled: runtime,
+    }
   );
   const focusAmount = useAnimatedNumber(0, {
     stiffness: 0.18,
@@ -84,6 +122,7 @@ export const LiquidSearchbox: React.FC<LiquidSearchboxProps> = ({
   const specularOpacity = 0.2;
   const specularSaturation = 4;
   const boxShadow = "0 4px 16px rgba(0, 0, 0, 0.16)";
+  const filterAssets = runtime && runtimeState.assets ? runtimeState.assets : searchboxAssets;
 
   return (
     <label
@@ -113,9 +152,9 @@ export const LiquidSearchbox: React.FC<LiquidSearchboxProps> = ({
     >
       <LiquidGlassFilter
         id={filterId}
-        assets={searchboxAssets}
-        width={420}
-        height={56}
+        assets={filterAssets}
+        width={filterAssets.width}
+        height={filterAssets.height}
         blur={blur}
         scaleRatio={scaleRatio}
         specularOpacity={specularOpacity}

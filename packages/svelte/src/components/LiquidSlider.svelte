@@ -1,9 +1,25 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy } from "svelte";
+  import type {
+    CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassFilterParamInput,
+  } from "@lollipopkit/liquid-glass";
   import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
+  import {
+    createLiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStoreState,
+  } from "../runtime";
   import { clamp, createAnimatedNumber, createFilterId, mix } from "../shared";
+
+  export type LiquidSliderRuntimeParams = Partial<
+    Pick<
+      LiquidGlassFilterParamInput,
+      "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+    >
+  >;
 
   export let value = 0;
   export let min = 0;
@@ -11,6 +27,9 @@
   export let step = 1;
   export let disabled = false;
   export let className = "";
+  export let runtime = false;
+  export let runtimeParams: LiquidSliderRuntimeParams = {};
+  export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
 
   const dispatch = createEventDispatcher();
   const filterId = createFilterId("liquid-slider");
@@ -21,8 +40,26 @@
   const REST_SCALE = 0.6;
   const ACTIVE_SCALE = 1;
   const REST_WIDTH = THUMB_WIDTH * REST_SCALE;
+  const SLIDER_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+    bezelType: "convex_squircle",
+    bezelWidth: 16,
+    glassThickness: 80,
+    height: THUMB_HEIGHT,
+    radius: 30,
+    refractiveIndex: 1.45,
+    width: THUMB_WIDTH,
+  };
+  const INITIAL_RUNTIME_STATE: LiquidGlassRuntimeStoreState = {
+    assets: null,
+    backend: null,
+    error: null,
+    isPending: false,
+  };
 
   let pressed = false;
+  let runtimeStore: LiquidGlassRuntimeStore | null = null;
+  let runtimeState: LiquidGlassRuntimeStoreState = INITIAL_RUNTIME_STATE;
+  let unsubscribeRuntimeStore: (() => void) | undefined;
   const activeAmount = createAnimatedNumber(0, {
     stiffness: 0.18,
     damping: 0.76,
@@ -31,6 +68,14 @@
     stiffness: 0.26,
     damping: 0.72,
   });
+
+  function disposeRuntimeStore() {
+    unsubscribeRuntimeStore?.();
+    unsubscribeRuntimeStore = undefined;
+    runtimeStore?.dispose();
+    runtimeStore = null;
+    runtimeState = INITIAL_RUNTIME_STATE;
+  }
 
   $: safeMax = max > min ? max : min + 1;
   $: normalizedValue = clamp(value, min, safeMax);
@@ -51,10 +96,28 @@
     ? "rgba(255,255,255,0.2)"
     : `rgba(255,255,255,${mix(1, 0.1, $activeAmount)})`;
   $: thumbShadow = "0 3px 14px rgba(0,0,0,0.1)";
+  $: mergedRuntimeInput = {
+    ...SLIDER_RUNTIME_INPUT,
+    ...runtimeParams,
+  };
+  $: if (runtime) {
+    if (!runtimeStore) {
+      runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
+      unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
+        runtimeState = value;
+      });
+    } else {
+      void runtimeStore.setConfig(mergedRuntimeInput, runtimeOptions);
+    }
+  } else {
+    disposeRuntimeStore();
+  }
+  $: filterAssets = runtime && runtimeState.assets ? runtimeState.assets : sliderAssets;
 
   onDestroy(() => {
     activeAmount.destroy();
     progressAmount.destroy();
+    disposeRuntimeStore();
   });
 </script>
 
@@ -103,9 +166,9 @@
 
       <LiquidGlassFilter
         id={filterId}
-        assets={sliderAssets}
-        width={THUMB_WIDTH}
-        height={THUMB_HEIGHT}
+        assets={filterAssets}
+        width={filterAssets.width}
+        height={filterAssets.height}
         {blur}
         {scaleRatio}
         {specularOpacity}

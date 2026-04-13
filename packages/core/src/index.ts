@@ -9,8 +9,19 @@ export type {
   CreateLiquidGlassRuntimeAssetsOptions,
   LiquidGlassRuntimeAssets,
   LiquidGlassRuntimeBackend,
+  LiquidGlassRuntimeBackendPreference,
 } from "./runtime/assets";
-export { createLiquidGlassRuntimeAssets } from "./runtime/assets";
+export {
+  createLiquidGlassRuntimeAssets,
+  resolveLiquidGlassRuntimeBackend,
+} from "./runtime/assets";
+export type { LiquidGlassManagedRuntimeAssets } from "./runtime/worker";
+export {
+  canUseLiquidGlassWorkerRuntime,
+  createManagedLiquidGlassRuntimeAssets,
+  prewarmLiquidGlassManagedRuntimeAssets,
+  primeLiquidGlassWorkerRuntime,
+} from "./runtime/worker";
 export type { SurfaceFnDef } from "./lib/surfaceEquations";
 export {
   CONCAVE,

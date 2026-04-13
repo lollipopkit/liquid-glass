@@ -1,5 +1,10 @@
 import componentStyles from "./styles.css?inline";
 import "./styles.css";
+export type {
+  UseLiquidGlassRuntimeAssetsOptions,
+  UseLiquidGlassRuntimeAssetsResult,
+} from "./runtime";
+export { useLiquidGlassRuntimeAssets } from "./runtime";
 
 const STYLE_ID = "liquid-glass-react-styles";
 
@@ -20,6 +25,24 @@ function ensureComponentStyles() {
 
 ensureComponentStyles();
 
+export type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassFilterAssets,
+  LiquidGlassFilterParamInput,
+  LiquidGlassManagedRuntimeAssets,
+  LiquidGlassRuntimeAssets,
+  LiquidGlassRuntimeBackend,
+  LiquidGlassRuntimeBackendPreference,
+} from "@lollipopkit/liquid-glass";
+export {
+  canUseLiquidGlassWorkerRuntime,
+  createLiquidGlassRuntimeAssets,
+  createManagedLiquidGlassRuntimeAssets,
+  normalizeLiquidGlassFilterParams,
+  prewarmLiquidGlassManagedRuntimeAssets,
+  primeLiquidGlassWorkerRuntime,
+  resolveLiquidGlassRuntimeBackend,
+} from "@lollipopkit/liquid-glass";
 export type { LiquidSearchboxProps } from "./components/LiquidSearchbox";
 export { LiquidSearchbox } from "./components/LiquidSearchbox";
 export type { LiquidSliderProps } from "./components/LiquidSlider";

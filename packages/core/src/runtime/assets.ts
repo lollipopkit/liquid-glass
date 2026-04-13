@@ -13,11 +13,16 @@ import {
 import { calculateMagnifyingDisplacementMap } from "../lib/magnifyingDisplacement";
 import { calculateRefractionSpecular } from "../lib/specular";
 
-export type LiquidGlassRuntimeBackend = "ts";
+export type LiquidGlassRuntimeBackend = "ts" | "worker";
+export type LiquidGlassRuntimeBackendPreference =
+  | LiquidGlassRuntimeBackend
+  | "auto";
 
 export type CreateLiquidGlassRuntimeAssetsOptions = {
+  backend?: LiquidGlassRuntimeBackendPreference;
   dpr?: number;
   signal?: AbortSignal;
+  useCache?: boolean;
 };
 
 export type LiquidGlassRuntimeAssets = LiquidGlassFilterAssets & {
@@ -51,6 +56,28 @@ type RuntimeMagnifyingRender = Pick<
   "magnify" | "magnifyingObjectUrl" | "magnifyingUrl"
 >;
 
+type CachedDisplacementRender = {
+  blob: Blob;
+  maxDisplacement: number;
+};
+
+type CachedSpecularRender = {
+  blob: Blob;
+};
+
+type CachedMagnifyingRender = {
+  blob?: Blob;
+  magnify: boolean;
+};
+
+const MAX_RUNTIME_CACHE_ENTRIES = 12;
+const AUTO_WORKER_PIXEL_COST_THRESHOLD = 900_000;
+const AUTO_WORKER_MAGNIFY_PIXEL_COST_THRESHOLD = 650_000;
+
+let displacementCache = new Map<string, Promise<CachedDisplacementRender>>();
+let specularCache = new Map<string, Promise<CachedSpecularRender>>();
+let magnifyingCache = new Map<string, Promise<CachedMagnifyingRender>>();
+
 function assertBrowserRuntime() {
   if (
     typeof OffscreenCanvas === "undefined" &&
@@ -70,6 +97,38 @@ function assertNotAborted(signal?: AbortSignal) {
 
 function resolveDevicePixelRatio(dpr?: number): number {
   return dpr ?? (typeof window !== "undefined" ? window.devicePixelRatio ?? 1 : 1);
+}
+
+export function resolveLiquidGlassRuntimeBackend(
+  input: LiquidGlassFilterParamInput = {},
+  dpr?: number,
+  preferredBackend: LiquidGlassRuntimeBackendPreference = "auto",
+  supportsWorkerBackend = false
+): LiquidGlassRuntimeBackend {
+  if (preferredBackend === "ts") {
+    return "ts";
+  }
+
+  if (preferredBackend === "worker") {
+    return supportsWorkerBackend ? "worker" : "ts";
+  }
+
+  if (!supportsWorkerBackend) {
+    return "ts";
+  }
+
+  const params = normalizeLiquidGlassFilterParams(input);
+  const resolvedDpr = resolveDevicePixelRatio(dpr);
+  const pixelCost = params.width * params.height * resolvedDpr * resolvedDpr;
+
+  if (
+    pixelCost >= AUTO_WORKER_PIXEL_COST_THRESHOLD ||
+    (params.magnify && pixelCost >= AUTO_WORKER_MAGNIFY_PIXEL_COST_THRESHOLD)
+  ) {
+    return "worker";
+  }
+
+  return "ts";
 }
 
 function getMaxDisplacement(values: number[]): number {
@@ -93,10 +152,10 @@ function toImageData({ data, width, height }: RgbaImageData): ImageData {
   throw new Error("ImageData is not available in the current runtime.");
 }
 
-async function toPngObjectUrl(
+async function toPngBlob(
   imageData: RgbaImageData,
   signal?: AbortSignal
-): Promise<string> {
+): Promise<Blob> {
   assertBrowserRuntime();
   assertNotAborted(signal);
 
@@ -112,9 +171,8 @@ async function toPngObjectUrl(
 
     context.putImageData(browserImageData, 0, 0);
     const blob = await canvas.convertToBlob({ type: "image/png" });
-
     assertNotAborted(signal);
-    return URL.createObjectURL(blob);
+    return blob;
   }
 
   const canvas = document.createElement("canvas");
@@ -140,7 +198,7 @@ async function toPngObjectUrl(
   });
 
   assertNotAborted(signal);
-  return URL.createObjectURL(blob);
+  return blob;
 }
 
 function revokeObjectUrls(state: RuntimeAssetState) {
@@ -156,6 +214,63 @@ function revokeIfDefined(objectUrl?: string) {
   if (objectUrl) {
     URL.revokeObjectURL(objectUrl);
   }
+}
+
+function trimRuntimeCache<T>(cache: Map<string, Promise<T>>) {
+  if (cache.size <= MAX_RUNTIME_CACHE_ENTRIES) {
+    return;
+  }
+
+  const entries = [...cache.entries()];
+  while (entries.length > MAX_RUNTIME_CACHE_ENTRIES) {
+    const oldest = entries.shift();
+    if (!oldest) {
+      break;
+    }
+
+    cache.delete(oldest[0]);
+  }
+}
+
+function getDisplacementCacheKey(
+  params: LiquidGlassFilterParams,
+  dpr: number
+): string {
+  return JSON.stringify({
+    bezelType: params.bezelType,
+    bezelWidth: params.bezelWidth,
+    dpr,
+    glassThickness: params.glassThickness,
+    height: params.height,
+    radius: params.radius,
+    refractiveIndex: params.refractiveIndex,
+    width: params.width,
+  });
+}
+
+function getSpecularCacheKey(
+  params: LiquidGlassFilterParams,
+  dpr: number
+): string {
+  return JSON.stringify({
+    bezelWidth: params.bezelWidth,
+    dpr,
+    height: params.height,
+    radius: params.radius,
+    width: params.width,
+  });
+}
+
+function getMagnifyingCacheKey(
+  params: LiquidGlassFilterParams,
+  dpr: number
+): string {
+  return JSON.stringify({
+    dpr,
+    height: params.height,
+    magnify: params.magnify,
+    width: params.width,
+  });
 }
 
 function shouldRerenderDisplacement(
@@ -208,50 +323,142 @@ function shouldRerenderMagnifying(
 async function renderDisplacementAsset(
   params: LiquidGlassFilterParams,
   signal?: AbortSignal,
-  dpr?: number
+  dpr?: number,
+  useCache = true
 ): Promise<RuntimeDisplacementRender> {
-  const surfacePreset = getLiquidGlassSurfacePreset(params.bezelType);
-  const precomputedDisplacementMap = calculateDisplacementMap(
-    params.glassThickness,
-    params.bezelWidth,
-    surfacePreset.fn,
-    params.refractiveIndex
-  );
-  const maxDisplacement = getMaxDisplacement(precomputedDisplacementMap);
-  const displacementImageData = calculateDisplacementMap2(
-    params.width,
-    params.height,
-    params.width,
-    params.height,
-    params.radius,
-    params.bezelWidth,
-    100,
-    precomputedDisplacementMap,
-    dpr
-  );
-  const displacementObjectUrl = await toPngObjectUrl(displacementImageData, signal);
+  const resolvedDpr = resolveDevicePixelRatio(dpr);
+  const renderPromise = useCache
+    ? (() => {
+        const key = getDisplacementCacheKey(params, resolvedDpr);
+        const cached = displacementCache.get(key);
+        if (cached) {
+          displacementCache.delete(key);
+          displacementCache.set(key, cached);
+          return cached;
+        }
+
+        const next = (async () => {
+          const surfacePreset = getLiquidGlassSurfacePreset(params.bezelType);
+          const precomputedDisplacementMap = calculateDisplacementMap(
+            params.glassThickness,
+            params.bezelWidth,
+            surfacePreset.fn,
+            params.refractiveIndex
+          );
+          const displacementImageData = calculateDisplacementMap2(
+            params.width,
+            params.height,
+            params.width,
+            params.height,
+            params.radius,
+            params.bezelWidth,
+            100,
+            precomputedDisplacementMap,
+            resolvedDpr
+          );
+
+          return {
+            blob: await toPngBlob(displacementImageData),
+            maxDisplacement: getMaxDisplacement(precomputedDisplacementMap),
+          };
+        })().catch((error) => {
+          displacementCache.delete(key);
+          throw error;
+        });
+
+        displacementCache.set(key, next);
+        trimRuntimeCache(displacementCache);
+        return next;
+      })()
+    : (async () => {
+        const surfacePreset = getLiquidGlassSurfacePreset(params.bezelType);
+        const precomputedDisplacementMap = calculateDisplacementMap(
+          params.glassThickness,
+          params.bezelWidth,
+          surfacePreset.fn,
+          params.refractiveIndex
+        );
+        const displacementImageData = calculateDisplacementMap2(
+          params.width,
+          params.height,
+          params.width,
+          params.height,
+          params.radius,
+          params.bezelWidth,
+          100,
+          precomputedDisplacementMap,
+          resolvedDpr
+        );
+
+        return {
+          blob: await toPngBlob(displacementImageData, signal),
+          maxDisplacement: getMaxDisplacement(precomputedDisplacementMap),
+        };
+      })();
+  const displacementRender = await renderPromise;
+  assertNotAborted(signal);
+  const displacementObjectUrl = URL.createObjectURL(displacementRender.blob);
 
   return {
     displacementObjectUrl,
     displacementUrl: displacementObjectUrl,
-    maxDisplacement,
+    maxDisplacement: displacementRender.maxDisplacement,
   };
 }
 
 async function renderSpecularAsset(
   params: LiquidGlassFilterParams,
   signal?: AbortSignal,
-  dpr?: number
+  dpr?: number,
+  useCache = true
 ): Promise<RuntimeSpecularRender> {
-  const specularImageData = calculateRefractionSpecular(
-    params.width,
-    params.height,
-    params.radius,
-    params.bezelWidth,
-    undefined,
-    dpr
-  );
-  const specularObjectUrl = await toPngObjectUrl(specularImageData, signal);
+  const resolvedDpr = resolveDevicePixelRatio(dpr);
+  const renderPromise = useCache
+    ? (() => {
+        const key = getSpecularCacheKey(params, resolvedDpr);
+        const cached = specularCache.get(key);
+        if (cached) {
+          specularCache.delete(key);
+          specularCache.set(key, cached);
+          return cached;
+        }
+
+        const next = (async () => ({
+          blob: await toPngBlob(
+            calculateRefractionSpecular(
+              params.width,
+              params.height,
+              params.radius,
+              params.bezelWidth,
+              undefined,
+              resolvedDpr
+            )
+          ),
+        }))().catch((error) => {
+          specularCache.delete(key);
+          throw error;
+        });
+
+        specularCache.set(key, next);
+        trimRuntimeCache(specularCache);
+        return next;
+      })()
+    : (async () => ({
+        blob: await toPngBlob(
+          calculateRefractionSpecular(
+            params.width,
+            params.height,
+            params.radius,
+            params.bezelWidth,
+            undefined,
+            resolvedDpr
+          ),
+          signal
+        ),
+      }))();
+  const specularRender = await renderPromise;
+  assertNotAborted(signal);
+  const specularObjectUrl = URL.createObjectURL(specularRender.blob);
 
   return {
     specularObjectUrl,
@@ -262,25 +469,73 @@ async function renderSpecularAsset(
 async function renderMagnifyingAsset(
   params: LiquidGlassFilterParams,
   signal?: AbortSignal,
-  dpr?: number
+  dpr?: number,
+  useCache = true
 ): Promise<RuntimeMagnifyingRender> {
-  if (!params.magnify) {
-    return {
-      magnify: false,
-      magnifyingObjectUrl: undefined,
-      magnifyingUrl: undefined,
-    };
-  }
+  const resolvedDpr = resolveDevicePixelRatio(dpr);
+  const renderPromise = useCache
+    ? (() => {
+        const key = getMagnifyingCacheKey(params, resolvedDpr);
+        const cached = magnifyingCache.get(key);
+        if (cached) {
+          magnifyingCache.delete(key);
+          magnifyingCache.set(key, cached);
+          return cached;
+        }
 
-  const magnifyingImageData = calculateMagnifyingDisplacementMap(
-    params.width,
-    params.height,
-    dpr
-  );
-  const magnifyingObjectUrl = await toPngObjectUrl(magnifyingImageData, signal);
+        const next = (async () => {
+          if (!params.magnify) {
+            return {
+              magnify: false,
+            };
+          }
+
+          return {
+            blob: await toPngBlob(
+              calculateMagnifyingDisplacementMap(
+                params.width,
+                params.height,
+                resolvedDpr
+              )
+            ),
+            magnify: true,
+          };
+        })().catch((error) => {
+          magnifyingCache.delete(key);
+          throw error;
+        });
+
+        magnifyingCache.set(key, next);
+        trimRuntimeCache(magnifyingCache);
+        return next;
+      })()
+    : (async () => {
+        if (!params.magnify) {
+          return {
+            magnify: false,
+          };
+        }
+
+        return {
+          blob: await toPngBlob(
+            calculateMagnifyingDisplacementMap(
+              params.width,
+              params.height,
+              resolvedDpr
+            ),
+            signal
+          ),
+          magnify: true,
+        };
+      })();
+  const magnifyingRender = await renderPromise;
+  assertNotAborted(signal);
+  const magnifyingObjectUrl = magnifyingRender.blob
+    ? URL.createObjectURL(magnifyingRender.blob)
+    : undefined;
 
   return {
-    magnify: true,
+    magnify: magnifyingRender.magnify,
     magnifyingObjectUrl,
     magnifyingUrl: magnifyingObjectUrl,
   };
@@ -292,15 +547,16 @@ async function renderRuntimeAssetState(
 ): Promise<RuntimeAssetState> {
   const params = normalizeLiquidGlassFilterParams(input);
   const resolvedDpr = resolveDevicePixelRatio(options.dpr);
+  const useCache = options.useCache ?? true;
   let displacementRender: RuntimeDisplacementRender | undefined;
   let specularRender: RuntimeSpecularRender | undefined;
   let magnifyingRender: RuntimeMagnifyingRender | undefined;
 
   try {
     [displacementRender, specularRender, magnifyingRender] = await Promise.all([
-      renderDisplacementAsset(params, options.signal, resolvedDpr),
-      renderSpecularAsset(params, options.signal, resolvedDpr),
-      renderMagnifyingAsset(params, options.signal, resolvedDpr),
+      renderDisplacementAsset(params, options.signal, resolvedDpr, useCache),
+      renderSpecularAsset(params, options.signal, resolvedDpr, useCache),
+      renderMagnifyingAsset(params, options.signal, resolvedDpr, useCache),
     ]);
   } catch (error) {
     revokeIfDefined(displacementRender?.displacementObjectUrl);
@@ -330,12 +586,20 @@ export async function createLiquidGlassRuntimeAssets(
   input: LiquidGlassFilterParamInput = {},
   options: CreateLiquidGlassRuntimeAssetsOptions = {}
 ): Promise<LiquidGlassRuntimeAssets> {
+  const resolvedBackend = resolveLiquidGlassRuntimeBackend(
+    input,
+    options.dpr,
+    options.backend,
+    false
+  );
   let state = await renderRuntimeAssetState(input, options);
   let disposed = false;
   let dprOverride = options.dpr;
+  let backendPreference = options.backend;
+  let useCache = options.useCache ?? true;
 
   const runtimeAssets: LiquidGlassRuntimeAssets = {
-    backend: "ts",
+    backend: resolvedBackend,
     displacementUrl: state.displacementUrl,
     dispose() {
       if (disposed) {
@@ -356,12 +620,20 @@ export async function createLiquidGlassRuntimeAssets(
         throw new Error("Cannot update disposed liquid glass runtime assets.");
       }
 
+      backendPreference = nextOptions.backend ?? backendPreference;
       const mergedDpr = nextOptions.dpr ?? dprOverride;
+      useCache = nextOptions.useCache ?? useCache;
       const nextParams = normalizeLiquidGlassFilterParams({
         ...state.params,
         ...nextInput,
       });
       const nextDpr = resolveDevicePixelRatio(mergedDpr);
+      const nextBackend = resolveLiquidGlassRuntimeBackend(
+        nextParams,
+        nextDpr,
+        backendPreference,
+        false
+      );
       const rerenderDisplacement = shouldRerenderDisplacement(
         state.params,
         nextParams,
@@ -385,16 +657,22 @@ export async function createLiquidGlassRuntimeAssets(
       let specularRender: RuntimeSpecularRender | undefined;
       let magnifyingRender: RuntimeMagnifyingRender | undefined;
 
+      if (nextBackend !== "ts") {
+        throw new Error(
+          "Worker runtime is not available in createLiquidGlassRuntimeAssets()."
+        );
+      }
+
       try {
         [displacementRender, specularRender, magnifyingRender] = await Promise.all([
           rerenderDisplacement
-            ? renderDisplacementAsset(nextParams, nextOptions.signal, nextDpr)
+            ? renderDisplacementAsset(nextParams, nextOptions.signal, nextDpr, useCache)
             : Promise.resolve(undefined),
           rerenderSpecular
-            ? renderSpecularAsset(nextParams, nextOptions.signal, nextDpr)
+            ? renderSpecularAsset(nextParams, nextOptions.signal, nextDpr, useCache)
             : Promise.resolve(undefined),
           rerenderMagnifying
-            ? renderMagnifyingAsset(nextParams, nextOptions.signal, nextDpr)
+            ? renderMagnifyingAsset(nextParams, nextOptions.signal, nextDpr, useCache)
             : Promise.resolve(undefined),
         ]);
       } catch (error) {

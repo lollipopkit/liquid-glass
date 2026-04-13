@@ -1,4 +1,5 @@
 import {
+  computed,
   defineComponent,
   h,
   onMounted,
@@ -7,8 +8,13 @@ import {
   toRef,
   useAttrs,
   watchEffect,
+  type PropType,
 } from "vue";
 import switchAssets from "virtual:liquidGlassFilterAssets?width=146&height=92&radius=46&bezelWidth=19&glassThickness=47&refractiveIndex=1.5&bezelType=lip";
+import type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassFilterParamInput,
+} from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -19,6 +25,14 @@ import {
   useControllableBoolean,
   useFilterId,
 } from "../shared";
+import { useLiquidGlassRuntimeAssets } from "../runtime";
+
+export type LiquidSwitchRuntimeParams = Partial<
+  Pick<
+    LiquidGlassFilterParamInput,
+    "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+  >
+>;
 
 const THUMB_WIDTH = 146;
 const THUMB_HEIGHT = 92;
@@ -31,6 +45,15 @@ const THUMB_REST_OFFSET = ((1 - REST_SCALE) * THUMB_WIDTH) / 2;
 const TRACK_PADDING = (THUMB_HEIGHT - TRACK_HEIGHT) / 2;
 const TRAVEL =
   TRACK_WIDTH - TRACK_HEIGHT - (THUMB_WIDTH - THUMB_HEIGHT) * REST_SCALE;
+const SWITCH_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+  bezelType: "lip",
+  bezelWidth: 19,
+  glassThickness: 47,
+  height: THUMB_HEIGHT,
+  radius: 46,
+  refractiveIndex: 1.5,
+  width: THUMB_WIDTH,
+};
 
 export const LiquidSwitch = defineComponent({
   name: "LiquidSwitch",
@@ -44,6 +67,18 @@ export const LiquidSwitch = defineComponent({
     disabled: {
       type: Boolean,
       default: false,
+    },
+    runtime: {
+      type: Boolean,
+      default: false,
+    },
+    runtimeOptions: {
+      type: Object as PropType<CreateLiquidGlassRuntimeAssetsOptions | undefined>,
+      default: undefined,
+    },
+    runtimeParams: {
+      type: Object as PropType<LiquidSwitchRuntimeParams | undefined>,
+      default: undefined,
     },
   },
   emits: ["update:modelValue", "change", "focus", "blur"],
@@ -64,6 +99,16 @@ export const LiquidSwitch = defineComponent({
       toRef(props, "modelValue"),
       props.defaultValue,
       emit
+    );
+    const runtimeState = useLiquidGlassRuntimeAssets(
+      computed(() => ({
+        ...SWITCH_RUNTIME_INPUT,
+        ...(props.runtimeParams ?? {}),
+      })),
+      computed(() => ({
+        ...(props.runtimeOptions ?? {}),
+        enabled: props.runtime,
+      }))
     );
     const activeAmount = useAnimatedNumber(0, {
       stiffness: 0.18,
@@ -174,6 +219,10 @@ export const LiquidSwitch = defineComponent({
         activeAmount.value.value > 0.5
           ? "0 4px 22px rgba(0,0,0,0.1), inset 2px 7px 24px rgba(0,0,0,0.09), inset -2px -7px 24px rgba(255,255,255,0.09)"
           : "0 4px 22px rgba(0,0,0,0.1)";
+      const filterAssets =
+        props.runtime && runtimeState.assets.value
+          ? runtimeState.assets.value
+          : switchAssets;
 
       return h(
         "label",
@@ -252,9 +301,9 @@ export const LiquidSwitch = defineComponent({
               }),
               h(LiquidGlassFilter, {
                 id: filterId,
-                assets: switchAssets,
-                width: THUMB_WIDTH,
-                height: THUMB_HEIGHT,
+                assets: filterAssets,
+                width: filterAssets.width,
+                height: filterAssets.height,
                 blur,
                 scaleRatio,
                 specularOpacity,

@@ -19,7 +19,7 @@
 - `@lollipopkit/liquid-glass-svelte`
   Svelte 组件包
 
-## Workspace 命令
+## 工作区命令
 
 ```bash
 npm install
@@ -39,7 +39,7 @@ npm run demo:build
 npm run demo:preview
 ```
 
-## Demo App
+## 演示应用
 
 迁移后的 Svelte 预览位于 `apps/liquid-glass-demo`，并通过本地 Vite alias
 直接渲染 `@lollipopkit/liquid-glass-svelte` 与
@@ -58,7 +58,7 @@ export default defineConfig({
 });
 ```
 
-## Virtual Modules
+## 虚拟模块
 
 Vite 包现在提供的是资源型模块，而不是框架专属的滤镜组件：
 
@@ -89,3 +89,92 @@ type LiquidGlassFilterAssets = {
 - `LiquidSwitch`
 - `LiquidMagnifyingGlass`
 - `LiquidParallaxHero`
+
+## 运行时 API
+
+`@lollipopkit/liquid-glass` 也提供了浏览器侧 runtime API，可在运行时直接生成滤镜资源，而不是依赖 Vite 的 `virtual:` 模块：
+
+```ts
+import {
+  createManagedLiquidGlassRuntimeAssets,
+  createLiquidGlassRuntimeAssets,
+  prewarmLiquidGlassManagedRuntimeAssets,
+  resolveLiquidGlassRuntimeBackend,
+} from "@lollipopkit/liquid-glass";
+
+const backend = resolveLiquidGlassRuntimeBackend(
+  {
+    width: 360,
+    height: 120,
+    radius: 36,
+    bezelWidth: 24,
+    glassThickness: 90,
+    refractiveIndex: 1.5,
+    magnify: false,
+    bezelType: "convex_squircle",
+  },
+  window.devicePixelRatio,
+  "auto",
+  false
+);
+
+const assets = await createLiquidGlassRuntimeAssets(
+  {
+    width: 360,
+    height: 120,
+    radius: 36,
+  },
+  {
+    backend: "auto",
+    dpr: window.devicePixelRatio,
+    useCache: true,
+  }
+);
+
+await prewarmLiquidGlassManagedRuntimeAssets(
+  {
+    width: 720,
+    height: 220,
+    radius: 44,
+  },
+  {
+    backend: "auto",
+    dpr: window.devicePixelRatio,
+    useCache: true,
+  }
+);
+
+const managedAssets = await createManagedLiquidGlassRuntimeAssets(
+  {
+    width: 360,
+    height: 120,
+    radius: 36,
+  },
+  {
+    backend: "auto",
+    dpr: window.devicePixelRatio,
+    useCache: true,
+  }
+);
+```
+
+运行时选项：
+
+- `backend?: "auto" | "ts" | "worker"`
+- `useCache?: boolean`
+
+说明：
+
+- `backend="auto"` 允许应用根据 workload 大小自动选择 backend
+- `backend="ts"` 强制使用主线程 runtime 路径
+- `backend="worker"` 会在浏览器支持所需 API 时优先选择共享 worker runtime
+- `useCache=false` 会绕过 runtime cache，强制重新生成
+
+共享运行时入口：
+
+- `createLiquidGlassRuntimeAssets()`：主线程运行时 helper
+- `createManagedLiquidGlassRuntimeAssets()`：可在 `ts` / `worker` 之间切换的共享运行时 helper
+- `prewarmLiquidGlassManagedRuntimeAssets()`：共享 worker 预热 helper
+
+这些运行时 helper 现在也会从 React、Vue、Svelte 包入口直接 re-export，
+框架使用方不需要额外再引一次 `@lollipopkit/liquid-glass`。

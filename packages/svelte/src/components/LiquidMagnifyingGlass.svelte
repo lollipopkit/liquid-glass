@@ -1,9 +1,25 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from "svelte";
+  import type {
+    CreateLiquidGlassRuntimeAssetsOptions,
+    LiquidGlassFilterParamInput,
+  } from "@lollipopkit/liquid-glass";
   import magnifierAssets from "virtual:liquidGlassFilterAssets?width=210&height=150&radius=75&bezelWidth=25&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
 
   import LiquidGlassFilter from "./LiquidGlassFilter.svelte";
+  import {
+    createLiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStore,
+    type LiquidGlassRuntimeStoreState,
+  } from "../runtime";
   import { clamp, createFilterId, createPhysicsSpring } from "../shared";
+
+  export type LiquidMagnifyingGlassRuntimeParams = Partial<
+    Pick<
+      LiquidGlassFilterParamInput,
+      "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+    >
+  >;
 
   export let lensWidth = 210;
   export let lensHeight = 150;
@@ -11,14 +27,26 @@
   export let initialY = 24;
   export let magnification = 24;
   export let className = "";
+  export let runtime = false;
+  export let runtimeParams: LiquidMagnifyingGlassRuntimeParams = {};
+  export let runtimeOptions: CreateLiquidGlassRuntimeAssetsOptions = {};
 
   const dispatch = createEventDispatcher();
   const filterId = createFilterId("liquid-magnifier");
   const specularOpacity = 0.5;
   const specularSaturation = 9;
+  const INITIAL_RUNTIME_STATE: LiquidGlassRuntimeStoreState = {
+    assets: null,
+    backend: null,
+    error: null,
+    isPending: false,
+  };
 
   let containerEl: HTMLDivElement;
   let lensEl: HTMLDivElement;
+  let runtimeStore: LiquidGlassRuntimeStore | null = null;
+  let runtimeState: LiquidGlassRuntimeStoreState = INITIAL_RUNTIME_STATE;
+  let unsubscribeRuntimeStore: (() => void) | undefined;
   let position = { x: initialX, y: initialY };
   let size = { width: 0, height: 0 };
   let dragFrame = 0;
@@ -87,6 +115,14 @@
     };
     livePosition.x = position.x;
     livePosition.y = position.y;
+  }
+
+  function disposeRuntimeStore() {
+    unsubscribeRuntimeStore?.();
+    unsubscribeRuntimeStore = undefined;
+    runtimeStore?.dispose();
+    runtimeStore = null;
+    runtimeState = INITIAL_RUNTIME_STATE;
   }
 
   function stopDragLoop() {
@@ -167,8 +203,32 @@
     shadowAlpha.destroy();
     insetShadowAlpha.destroy();
     shadowBlur.destroy();
+    disposeRuntimeStore();
   });
 
+  $: mergedRuntimeInput = {
+    bezelType: "convex_squircle",
+    bezelWidth: 25,
+    glassThickness: 110,
+    height: lensHeight,
+    magnify: true,
+    radius: Math.floor(lensHeight / 2),
+    refractiveIndex: 1.5,
+    width: lensWidth,
+    ...runtimeParams,
+  };
+  $: if (runtime) {
+    if (!runtimeStore) {
+      runtimeStore = createLiquidGlassRuntimeStore(mergedRuntimeInput, runtimeOptions);
+      unsubscribeRuntimeStore = runtimeStore.subscribe((value) => {
+        runtimeState = value;
+      });
+    } else {
+      void runtimeStore.setConfig(mergedRuntimeInput, runtimeOptions);
+    }
+  } else {
+    disposeRuntimeStore();
+  }
   $: refractionLevel.setTarget(isDragging ? 1 : 0.8);
   $: magnifyingScaleAmount.setTarget(isDragging ? magnification * 2 : magnification);
   $: objectScale.setTarget(isDragging ? 1 : 0.8);
@@ -182,6 +242,7 @@
   $: insetShadowAlpha.setTarget(isDragging ? 0.27 : 0.2);
   $: shadowBlur.setTarget(isDragging ? 24 : 9);
   $: boxShadow = `${$shadowSx}px ${$shadowSy}px ${$shadowBlur}px rgba(0,0,0,${$shadowAlpha}), inset ${$shadowSx / 2}px ${$shadowSy / 2}px 24px rgba(0,0,0,${$insetShadowAlpha}), inset ${-$shadowSx / 2}px ${-$shadowSy / 2}px 24px rgba(255,255,255,${$insetShadowAlpha})`;
+  $: filterAssets = runtime && runtimeState.assets ? runtimeState.assets : magnifierAssets;
 </script>
 
 <svelte:window on:resize={updateSize} on:pointermove={handlePointerMove} on:pointerup={handlePointerUp} on:pointercancel={handlePointerUp} />
@@ -195,7 +256,7 @@
 
   <LiquidGlassFilter
     id={filterId}
-    assets={magnifierAssets}
+    assets={filterAssets}
     width={lensWidth}
     height={lensHeight}
     blur={0}

@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from "react";
 import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
+import type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassFilterParamInput,
+} from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -10,6 +14,14 @@ import {
   useControllableValue,
   useFilterId,
 } from "./shared";
+import { useLiquidGlassRuntimeAssets } from "../runtime";
+
+export type LiquidSliderRuntimeParams = Partial<
+  Pick<
+    LiquidGlassFilterParamInput,
+    "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+  >
+>;
 
 export type LiquidSliderProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -22,6 +34,9 @@ export type LiquidSliderProps = Omit<
   max?: number;
   step?: number;
   className?: string;
+  runtime?: boolean;
+  runtimeOptions?: CreateLiquidGlassRuntimeAssetsOptions;
+  runtimeParams?: LiquidSliderRuntimeParams;
 };
 
 const THUMB_WIDTH = 90;
@@ -30,6 +45,15 @@ const TRACK_HEIGHT = 14;
 const REST_SCALE = 0.6;
 const ACTIVE_SCALE = 1;
 const REST_WIDTH = THUMB_WIDTH * REST_SCALE;
+const SLIDER_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+  bezelType: "convex_squircle",
+  bezelWidth: 16,
+  glassThickness: 80,
+  height: THUMB_HEIGHT,
+  radius: 30,
+  refractiveIndex: 1.45,
+  width: THUMB_WIDTH,
+};
 
 export const LiquidSlider: React.FC<LiquidSliderProps> = ({
   className,
@@ -39,6 +63,9 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
   min = 0,
   onChange,
   onValueChange,
+  runtime = false,
+  runtimeOptions,
+  runtimeParams,
   step = 1,
   value: controlledValue,
   ...inputProps
@@ -50,6 +77,16 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
     controlledValue,
     clamp(defaultValue ?? min, min, safeMax),
     onValueChange
+  );
+  const runtimeState = useLiquidGlassRuntimeAssets(
+    {
+      ...SLIDER_RUNTIME_INPUT,
+      ...runtimeParams,
+    },
+    {
+      ...runtimeOptions,
+      enabled: runtime,
+    }
   );
   const normalizedValue = clamp(value, min, safeMax);
   const progress = ((normalizedValue - min) / (safeMax - min)) * 100;
@@ -105,6 +142,7 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
     ? "rgba(255,255,255,0.2)"
     : `rgba(255,255,255,${mix(1, 0.1, activeAmount.value)})`;
   const thumbShadow = "0 3px 14px rgba(0,0,0,0.1)";
+  const filterAssets = runtime && runtimeState.assets ? runtimeState.assets : sliderAssets;
 
   return (
     <div
@@ -172,9 +210,9 @@ export const LiquidSlider: React.FC<LiquidSliderProps> = ({
 
           <LiquidGlassFilter
             id={filterId}
-            assets={sliderAssets}
-            width={THUMB_WIDTH}
-            height={THUMB_HEIGHT}
+            assets={filterAssets}
+            width={filterAssets.width}
+            height={filterAssets.height}
             blur={blur}
             scaleRatio={scaleRatio}
             specularOpacity={specularOpacity}

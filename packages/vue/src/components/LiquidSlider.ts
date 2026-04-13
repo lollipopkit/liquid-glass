@@ -1,4 +1,5 @@
 import {
+  computed,
   defineComponent,
   h,
   onMounted,
@@ -7,8 +8,13 @@ import {
   toRef,
   useAttrs,
   watchEffect,
+  type PropType,
 } from "vue";
 import sliderAssets from "virtual:liquidGlassFilterAssets?width=90&height=60&radius=30&bezelWidth=16&glassThickness=80&refractiveIndex=1.45&bezelType=convex_squircle";
+import type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassFilterParamInput,
+} from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -19,6 +25,14 @@ import {
   useControllableNumber,
   useFilterId,
 } from "../shared";
+import { useLiquidGlassRuntimeAssets } from "../runtime";
+
+export type LiquidSliderRuntimeParams = Partial<
+  Pick<
+    LiquidGlassFilterParamInput,
+    "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+  >
+>;
 
 const THUMB_WIDTH = 90;
 const THUMB_HEIGHT = 60;
@@ -26,6 +40,15 @@ const TRACK_HEIGHT = 14;
 const REST_SCALE = 0.6;
 const ACTIVE_SCALE = 1;
 const REST_WIDTH = THUMB_WIDTH * REST_SCALE;
+const SLIDER_RUNTIME_INPUT: LiquidGlassFilterParamInput = {
+  bezelType: "convex_squircle",
+  bezelWidth: 16,
+  glassThickness: 80,
+  height: THUMB_HEIGHT,
+  radius: 30,
+  refractiveIndex: 1.45,
+  width: THUMB_WIDTH,
+};
 
 export const LiquidSlider = defineComponent({
   name: "LiquidSlider",
@@ -49,6 +72,18 @@ export const LiquidSlider = defineComponent({
       type: Boolean,
       default: false,
     },
+    runtime: {
+      type: Boolean,
+      default: false,
+    },
+    runtimeOptions: {
+      type: Object as PropType<CreateLiquidGlassRuntimeAssetsOptions | undefined>,
+      default: undefined,
+    },
+    runtimeParams: {
+      type: Object as PropType<LiquidSliderRuntimeParams | undefined>,
+      default: undefined,
+    },
   },
   emits: ["update:modelValue", "change", "focus", "blur"],
   setup(props, { emit }) {
@@ -60,6 +95,16 @@ export const LiquidSlider = defineComponent({
       toRef(props, "modelValue"),
       clamp(props.defaultValue ?? props.min, props.min, safeMax),
       emit
+    );
+    const runtimeState = useLiquidGlassRuntimeAssets(
+      computed(() => ({
+        ...SLIDER_RUNTIME_INPUT,
+        ...(props.runtimeParams ?? {}),
+      })),
+      computed(() => ({
+        ...(props.runtimeOptions ?? {}),
+        enabled: props.runtime,
+      }))
     );
     const activeAmount = useAnimatedNumber(0, {
       stiffness: 0.18,
@@ -114,6 +159,10 @@ export const LiquidSlider = defineComponent({
         ? "rgba(255,255,255,0.2)"
         : `rgba(255,255,255,${mix(1, 0.1, activeAmount.value.value)})`;
       const thumbShadow = "0 3px 14px rgba(0,0,0,0.1)";
+      const filterAssets =
+        props.runtime && runtimeState.assets.value
+          ? runtimeState.assets.value
+          : sliderAssets;
 
       return h(
         "div",
@@ -191,9 +240,9 @@ export const LiquidSlider = defineComponent({
                 ),
                 h(LiquidGlassFilter, {
                   id: filterId,
-                  assets: sliderAssets,
-                  width: THUMB_WIDTH,
-                  height: THUMB_HEIGHT,
+                  assets: filterAssets,
+                  width: filterAssets.width,
+                  height: filterAssets.height,
                   blur,
                   scaleRatio,
                   specularOpacity,

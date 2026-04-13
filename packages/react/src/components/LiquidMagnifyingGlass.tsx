@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import magnifierAssets from "virtual:liquidGlassFilterAssets?width=210&height=150&radius=75&bezelWidth=25&glassThickness=110&refractiveIndex=1.5&bezelType=convex_squircle&magnify=true";
+import type {
+  CreateLiquidGlassRuntimeAssetsOptions,
+  LiquidGlassFilterParamInput,
+} from "@lollipopkit/liquid-glass";
 
 import { LiquidGlassFilter } from "./LiquidGlassFilter";
 import {
@@ -10,6 +14,14 @@ import {
   useElementSize,
   useFilterId,
 } from "./shared";
+import { useLiquidGlassRuntimeAssets } from "../runtime";
+
+export type LiquidMagnifyingGlassRuntimeParams = Partial<
+  Pick<
+    LiquidGlassFilterParamInput,
+    "bezelType" | "bezelWidth" | "glassThickness" | "magnify" | "radius" | "refractiveIndex"
+  >
+>;
 
 export type LiquidMagnifyingGlassProps = {
   children: React.ReactNode;
@@ -19,6 +31,9 @@ export type LiquidMagnifyingGlassProps = {
   initialX?: number;
   initialY?: number;
   magnification?: number;
+  runtime?: boolean;
+  runtimeOptions?: CreateLiquidGlassRuntimeAssetsOptions;
+  runtimeParams?: LiquidMagnifyingGlassRuntimeParams;
 };
 
 export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
@@ -29,10 +44,30 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
   lensHeight = 150,
   lensWidth = 210,
   magnification = 24,
+  runtime = false,
+  runtimeOptions,
+  runtimeParams,
 }) => {
   const specularOpacity = 0.5;
   const specularSaturation = 9;
   const filterId = useFilterId("liquid-magnifier");
+  const runtimeState = useLiquidGlassRuntimeAssets(
+    {
+      bezelType: "convex_squircle",
+      bezelWidth: 25,
+      glassThickness: 110,
+      height: lensHeight,
+      magnify: true,
+      radius: Math.floor(lensHeight / 2),
+      refractiveIndex: 1.5,
+      width: lensWidth,
+      ...runtimeParams,
+    },
+    {
+      ...runtimeOptions,
+      enabled: runtime,
+    }
+  );
   const { ref, size } = useElementSize<HTMLDivElement>();
   const lensRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -165,6 +200,8 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
   const insetShadowAlpha = mix(0.2, 0.27, activeAmount.value);
   const shadowBlur = mix(9, 24, activeAmount.value);
   const boxShadow = `${shadowSx}px ${shadowSy}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}), inset ${shadowSx / 2}px ${shadowSy / 2}px 24px rgba(0,0,0,${insetShadowAlpha}), inset ${-shadowSx / 2}px ${-shadowSy / 2}px 24px rgba(255,255,255,${insetShadowAlpha})`;
+  const filterAssets =
+    runtime && runtimeState.assets ? runtimeState.assets : magnifierAssets;
 
   return (
     <div
@@ -181,7 +218,7 @@ export const LiquidMagnifyingGlass: React.FC<LiquidMagnifyingGlassProps> = ({
 
       <LiquidGlassFilter
         id={filterId}
-        assets={magnifierAssets}
+        assets={filterAssets}
         width={lensWidth}
         height={lensHeight}
         blur={0}
