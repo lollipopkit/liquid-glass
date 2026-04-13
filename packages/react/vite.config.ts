@@ -20,6 +20,7 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
+        "@lollipopkit/liquid-glass",
         "react",
         "react/jsx-runtime",
         "react-dom",

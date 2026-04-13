@@ -20,7 +20,7 @@ export default defineConfig({
       cssFileName: "styles",
     },
     rollupOptions: {
-      external: ["svelte"],
+      external: ["@lollipopkit/liquid-glass", "svelte"],
       output: {
         assetFileNames: (assetInfo) =>
           assetInfo.name?.endsWith(".css")

@@ -156,7 +156,10 @@ function supportsWorkerBackend() {
 function createDefaultLiquidGlassWorker(
   options?: CreateLiquidGlassWorkerOptions
 ): Worker {
-  const workerUrl = new URL("./runtime/liquidGlassRuntime.worker.js", import.meta.url);
+  const workerUrl = new URL(
+    /* @vite-ignore */ "./runtime/liquidGlassRuntime.worker.js",
+    import.meta.url
+  );
   return new Worker(workerUrl, {
     name: options?.name,
     type: "module",

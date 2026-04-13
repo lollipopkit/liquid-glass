@@ -19,7 +19,7 @@ export default defineConfig({
       cssFileName: "styles",
     },
     rollupOptions: {
-      external: ["vue"],
+      external: ["@lollipopkit/liquid-glass", "vue"],
       output: {
         assetFileNames: (assetInfo) =>
           assetInfo.name?.endsWith(".css")
