@@ -1,27 +1,25 @@
 import type {
-  LiquidGlassFilterAssets,
   LiquidGlassStaticAssetKey,
   LiquidGlassStaticAssetRegistry,
 } from "@lollipopkit/liquid-glass";
+import { createLiquidGlassStaticAssetRegistryManager } from "@lollipopkit/liquid-glass";
 
-const staticAssetRegistry: LiquidGlassStaticAssetRegistry = {};
+const staticAssetRegistry = createLiquidGlassStaticAssetRegistryManager();
 
 export type { LiquidGlassStaticAssetKey, LiquidGlassStaticAssetRegistry };
 
 export function configureLiquidGlassStaticAssets(
   nextRegistry: LiquidGlassStaticAssetRegistry
 ) {
-  Object.assign(staticAssetRegistry, nextRegistry);
+  staticAssetRegistry.configure(nextRegistry);
 }
 
 export function resetLiquidGlassStaticAssets() {
-  for (const key of Object.keys(staticAssetRegistry) as LiquidGlassStaticAssetKey[]) {
-    delete staticAssetRegistry[key];
-  }
+  staticAssetRegistry.reset();
 }
 
 export function getLiquidGlassStaticAssets(
   key: LiquidGlassStaticAssetKey
-): LiquidGlassFilterAssets | null {
-  return staticAssetRegistry[key] ?? null;
+) {
+  return staticAssetRegistry.get(key);
 }

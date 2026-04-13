@@ -1,0 +1,21 @@
+{
+  "name": "liquid-glass-vue-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node ../../scripts/run-workspaces.mjs build && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@lollipopkit/liquid-glass": "*",
+    "@lollipopkit/liquid-glass-vite": "*",
+    "@lollipopkit/liquid-glass-vue": "*",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

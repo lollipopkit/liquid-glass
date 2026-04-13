@@ -1,6 +1,6 @@
 {
   "name": "@lollipopkit/liquid-glass-svelte",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "description": "Svelte liquid glass components with optional Vite asset optimization.",
   "license": "MIT",
   "type": "module",
@@ -48,7 +48,7 @@
     "typecheck": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@lollipopkit/liquid-glass": "0.1.2"
+    "@lollipopkit/liquid-glass": "0.2.1"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"

@@ -2,6 +2,7 @@ import type {
   LiquidGlassDisplacementAsset,
   LiquidGlassFilterAssets,
   LiquidGlassImageAsset,
+  LiquidGlassStaticAssetRegistry,
 } from "@lollipopkit/liquid-glass";
 
 declare module "virtual:liquidGlassDisplacementMap*" {
@@ -31,5 +32,14 @@ declare module "virtual:liquidGlassMagnifyingMap*" {
 
 declare module "virtual:liquidGlassFilterAssets*" {
   const data: LiquidGlassFilterAssets;
+  export default data;
+}
+
+declare module "virtual:liquidGlassStaticAssetRegistry" {
+  const data: LiquidGlassStaticAssetRegistry;
+  export const staticAssets: LiquidGlassStaticAssetRegistry;
+  export function registerLiquidGlassStaticAssets(
+    configure: (assets: LiquidGlassStaticAssetRegistry) => void
+  ): LiquidGlassStaticAssetRegistry;
   export default data;
 }

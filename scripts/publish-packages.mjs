@@ -41,7 +41,7 @@ if (command === "sync") {
 validateGitTag();
 
 if (!skipBuild) {
-  run(rootDir, "npm", ["run", "build"]);
+  run(rootDir, "npm", ["run", "prepublish:check"]);
 }
 
 publishPackages();

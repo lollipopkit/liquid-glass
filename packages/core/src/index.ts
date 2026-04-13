@@ -18,6 +18,8 @@ export {
   createLiquidGlassRuntimeAssets,
   resolveLiquidGlassRuntimeBackend,
 } from "./runtime/assets";
+export type { LiquidGlassStaticAssetRegistryManager } from "./runtime/staticAssets";
+export { createLiquidGlassStaticAssetRegistryManager } from "./runtime/staticAssets";
 export type {
   CreateLiquidGlassWorkerOptions,
   LiquidGlassManagedRuntimeAssets,

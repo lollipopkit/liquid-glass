@@ -15,6 +15,7 @@
     "demo:dev": "node ./scripts/run-demo.mjs dev",
     "demo:preview": "node ./scripts/run-demo.mjs preview",
     "demo:typecheck": "node ./scripts/run-demo.mjs typecheck",
+    "prepublish:check": "node ./scripts/prepublish-check.mjs",
     "publish-packages": "node ./scripts/publish-packages.mjs publish",
     "release": "node ./scripts/publish-packages.mjs release",
     "sync-versions": "node ./scripts/publish-packages.mjs sync",

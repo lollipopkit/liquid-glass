@@ -1,6 +1,6 @@
 {
   "name": "@lollipopkit/liquid-glass-react",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "description": "React liquid glass components with optional Vite asset optimization.",
   "license": "MIT",
   "type": "module",
@@ -42,11 +42,11 @@
     "access": "public"
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && tsc -p tsconfig.build.json && node ../../scripts/flatten-dist-types.mjs dist/react/src dist",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@lollipopkit/liquid-glass": "0.1.2",
+    "@lollipopkit/liquid-glass": "0.2.1",
     "tailwind-merge": "^2.6.0"
   },
   "peerDependencies": {

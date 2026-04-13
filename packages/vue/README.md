@@ -64,12 +64,10 @@ also available on `LiquidSlider`, `LiquidSwitch`, `LiquidMagnifyingGlass`, and
 If your app uses Vite, you can pre-generate assets and register them once:
 
 ```ts
-import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
+import { registerLiquidGlassStaticAssets } from "virtual:liquidGlassStaticAssetRegistry";
 import { configureLiquidGlassStaticAssets } from "@lollipopkit/liquid-glass-vue";
 
-configureLiquidGlassStaticAssets({
-  searchbox: searchboxAssets,
-});
+registerLiquidGlassStaticAssets(configureLiquidGlassStaticAssets);
 ```
 
 `mode` accepts:
@@ -81,4 +79,4 @@ configureLiquidGlassStaticAssets({
 `runtime` remains available as a compatibility flag while `mode` becomes the
 preferred API.
 
-See the root repository README for optional Vite setup and examples.
+See the root repository README for the latest runtime-first and optional Vite setup.

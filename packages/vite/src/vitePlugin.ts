@@ -4,6 +4,8 @@ import type {
   LiquidGlassFilterParamInput,
   LiquidGlassFilterParams,
   LiquidGlassImageAsset,
+  LiquidGlassStaticAssetKey,
+  LiquidGlassStaticAssetRegistry,
 } from "@lollipopkit/liquid-glass";
 import {
   calculateDisplacementMap,
@@ -28,6 +30,57 @@ type DisplacementCacheEntry = {
 type ImageCacheEntry = {
   buffer: Buffer;
   params: LiquidGlassFilterParams;
+};
+
+const DEFAULT_STATIC_ASSET_INPUTS: Record<
+  LiquidGlassStaticAssetKey,
+  LiquidGlassFilterParamInput
+> = {
+  hero: {
+    width: 150,
+    height: 150,
+    radius: 75,
+    bezelWidth: 40,
+    glassThickness: 120,
+    refractiveIndex: 1.5,
+  },
+  magnifier: {
+    width: 210,
+    height: 150,
+    radius: 75,
+    bezelWidth: 25,
+    glassThickness: 110,
+    refractiveIndex: 1.5,
+    bezelType: "convex_squircle",
+    magnify: true,
+  },
+  searchbox: {
+    width: 420,
+    height: 56,
+    radius: 28,
+    bezelWidth: 27,
+    glassThickness: 70,
+    refractiveIndex: 1.5,
+    bezelType: "convex_squircle",
+  },
+  slider: {
+    width: 90,
+    height: 60,
+    radius: 30,
+    bezelWidth: 16,
+    glassThickness: 80,
+    refractiveIndex: 1.45,
+    bezelType: "convex_squircle",
+  },
+  switch: {
+    width: 146,
+    height: 92,
+    radius: 46,
+    bezelWidth: 19,
+    glassThickness: 47,
+    refractiveIndex: 1.5,
+    bezelType: "lip",
+  },
 };
 
 function parseLiquidGlassParams(id: string): LiquidGlassFilterParamInput {
@@ -254,6 +307,40 @@ export default ${JSON.stringify(data)};`;
     return `export default ${JSON.stringify(data)};`;
   }
 
+  function createStaticAssetRegistryModule() {
+    const data: LiquidGlassStaticAssetRegistry = {};
+
+    for (const [key, input] of Object.entries(
+      DEFAULT_STATIC_ASSET_INPUTS
+    ) as Array<[LiquidGlassStaticAssetKey, LiquidGlassFilterParamInput]>) {
+      const params = normalizeLiquidGlassFilterParams(input);
+      const displacement = getDisplacementEntry(params);
+      const specular = getSpecularEntry(params);
+      const magnifying = params.magnify ? getMagnifyingEntry(params) : undefined;
+
+      data[key] = {
+        displacementUrl: `/assets/${getDisplacementFilename(displacement.params)}`,
+        specularUrl: `/assets/${getSpecularFilename(specular.params)}`,
+        magnifyingUrl: magnifying
+          ? `/assets/${getMagnifyingFilename(magnifying.params)}`
+          : undefined,
+        width: params.width,
+        height: params.height,
+        maxDisplacement: displacement.maxDisplacement,
+        magnify: params.magnify,
+        params,
+      };
+    }
+
+    return `const staticAssets = ${JSON.stringify(data)};
+export function registerLiquidGlassStaticAssets(configure) {
+  configure(staticAssets);
+  return staticAssets;
+}
+export { staticAssets };
+export default staticAssets;`;
+  }
+
   return {
     name: "liquid-glass-vite-plugin",
 
@@ -271,6 +358,10 @@ export default ${JSON.stringify(data)};`;
       }
 
       if (id.startsWith("virtual:liquidGlassFilterAssets")) {
+        return `\0${id}`;
+      }
+
+      if (id === "virtual:liquidGlassStaticAssetRegistry") {
         return `\0${id}`;
       }
     },
@@ -302,6 +393,10 @@ export default ${JSON.stringify(data)};`;
           parseLiquidGlassParams(id.replace("\0", ""))
         );
         return createFilterAssetsModule(params);
+      }
+
+      if (id === "\0virtual:liquidGlassStaticAssetRegistry") {
+        return createStaticAssetRegistryModule();
       }
     },
 

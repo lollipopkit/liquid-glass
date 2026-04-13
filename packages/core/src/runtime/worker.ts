@@ -156,8 +156,7 @@ function supportsWorkerBackend() {
 function createDefaultLiquidGlassWorker(
   options?: CreateLiquidGlassWorkerOptions
 ): Worker {
-  const workerPath = ["./runtime", "liquidGlassRuntime.worker.js"].join("/");
-  const workerUrl = new URL(workerPath, import.meta.url);
+  const workerUrl = new URL("./runtime/liquidGlassRuntime.worker.js", import.meta.url);
   return new Worker(workerUrl, {
     name: options?.name,
     type: "module",

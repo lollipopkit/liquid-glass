@@ -45,6 +45,20 @@ The migrated Svelte preview lives in `apps/liquid-glass-demo` and renders the
 workspace sources for `@lollipopkit/liquid-glass-svelte` and
 `@lollipopkit/liquid-glass-vite` through local Vite aliases.
 
+Separate non-Vite verification fixtures live in:
+
+- `apps/liquid-glass-next`
+  validates the React package in a real Next.js host using the runtime path
+- `apps/liquid-glass-webpack`
+  validates the React package in a traditional Webpack 5 host using the runtime path
+
+Framework-specific Vite examples also live in:
+
+- `apps/liquid-glass-react-demo`
+  demonstrates React with registered static assets and runtime fallback
+- `apps/liquid-glass-vue-demo`
+  demonstrates Vue with registered static assets and runtime fallback
+
 ## Optional Vite Static Assets
 
 The React, Vue, and Svelte packages now work without Vite by falling back to
@@ -64,13 +78,26 @@ export default defineConfig({
 ```
 
 ```ts
-import searchboxAssets from "virtual:liquidGlassFilterAssets?width=420&height=56&radius=28&bezelWidth=27&glassThickness=70&refractiveIndex=1.5&bezelType=convex_squircle";
+import { registerLiquidGlassStaticAssets } from "virtual:liquidGlassStaticAssetRegistry";
 import { configureLiquidGlassStaticAssets } from "@lollipopkit/liquid-glass-react";
 
-configureLiquidGlassStaticAssets({
-  searchbox: searchboxAssets,
-});
+registerLiquidGlassStaticAssets(configureLiquidGlassStaticAssets);
 ```
+
+## Recommended Usage
+
+For most apps:
+
+- start with `mode="auto"`
+- do not install `@lollipopkit/liquid-glass-vite` unless you want pre-generated static assets
+- only add the Vite static registry path when startup cost or repeated renders justify it
+
+Current mental model:
+
+- framework packages work on their own
+- runtime is the default fallback
+- Vite is an optional static optimization layer
+- worker runtime no longer depends on `?worker`
 
 ## Virtual Modules
 
@@ -80,6 +107,16 @@ The Vite package exposes resource modules instead of framework-specific filter c
 - `virtual:liquidGlassSpecularMap?...`
 - `virtual:liquidGlassMagnifyingMap?...`
 - `virtual:liquidGlassFilterAssets?...`
+- `virtual:liquidGlassStaticAssetRegistry`
+
+`virtual:liquidGlassStaticAssetRegistry` exports:
+
+```ts
+import staticAssets, {
+  registerLiquidGlassStaticAssets,
+  staticAssets as namedStaticAssets,
+} from "virtual:liquidGlassStaticAssetRegistry";
+```
 
 `virtual:liquidGlassFilterAssets` returns:
 
@@ -210,6 +247,21 @@ Shared runtime helpers:
 These runtime helpers are also re-exported from the React, Vue, and Svelte
 packages so framework consumers can keep using a single package entrypoint.
 
+## Release Checks
+
+Run this before publishing packages:
+
+```bash
+npm run prepublish:check
+```
+
+It verifies:
+
+- all package builds
+- Svelte, React, and Vue Vite demos
+- Next.js and Webpack non-Vite fixtures
+- `npm pack --dry-run` for every publishable package
+
 ## Component Asset Modes
 
 All framework components support:
@@ -220,3 +272,11 @@ All framework components support:
 
 `runtime` remains available as a compatibility flag, but `mode` is now the
 preferred API.
+
+## Host Compatibility
+
+The current integration model supports:
+
+- Vite apps using `virtual:liquidGlassStaticAssetRegistry`
+- non-Vite apps using runtime mode only
+- custom worker wiring via `configureLiquidGlassWorkerRuntime()` when a host bundler needs it

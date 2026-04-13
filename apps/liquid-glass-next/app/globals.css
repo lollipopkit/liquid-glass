@@ -1,0 +1,24 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  color: #111827;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.85), transparent 42%),
+    linear-gradient(180deg, #f7efe7 0%, #efe6d8 100%);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+code {
+  border-radius: 9999px;
+  padding: 0.12rem 0.45rem;
+  background: rgba(17, 24, 39, 0.08);
+}
